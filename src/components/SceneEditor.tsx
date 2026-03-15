@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, X, Plus, ArrowUp, ArrowDown, Users, MapPin, Link, Eye, EyeOff, Settings } from 'lucide-react';
+import { NPCSelector } from './NPCSelector';
 import type { Scene, SceneType, SceneFormData, SceneNpcRef, ExitOption } from '@/types';
 import { SceneFormSchema, validateSceneForm } from '@/schemas';
 
@@ -145,26 +146,6 @@ export function SceneEditor({ scene, adventureId, onSave, onCancel, isLoading = 
 
   const removeExitOption = (id: string) => {
     setExitOptions(exitOptions.filter(exit => exit.id !== id));
-  };
-
-  const addNpcRef = () => {
-    const newNpc: SceneNpcRef = {
-      npcId: '',
-      presenceRole: '',
-      isHostile: false,
-      notes: ''
-    };
-    setNpcRefs([...npcRefs, newNpc]);
-  };
-
-  const updateNpcRef = (index: number, updates: Partial<SceneNpcRef>) => {
-    setNpcRefs(npcRefs.map((npc, i) => 
-      i === index ? { ...npc, ...updates } : npc
-    ));
-  };
-
-  const removeNpcRef = (index: number) => {
-    setNpcRefs(npcRefs.filter((_, i) => i !== index));
   };
 
   const addTag = () => {
@@ -503,92 +484,11 @@ export function SceneEditor({ scene, adventureId, onSave, onCancel, isLoading = 
           </div>
 
           {/* NPC References */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">NPCs in Scene</h3>
-              <button
-                type="button"
-                onClick={addNpcRef}
-                className="inline-flex items-center px-3 py-2 border border border-dashed border-gray-300 rounded-md text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700"
-                disabled={isSaving}
-              >
-                <Users className="h-3 w-3 mr-1" />
-                Add NPC
-              </button>
-            </div>
-            <div className="space-y-4">
-              {npcRefs.map((npcRef, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        NPC
-                      </label>
-                      <select
-                        value={npcRef.npcId}
-                        onChange={(e) => updateNpcRef(index, { npcId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isSaving}
-                      >
-                        <option value="">Select NPC...</option>
-                        {/* TODO: Load actual NPCs from database */}
-                        <option value="npc-1">Guard Captain</option>
-                        <option value="npc-2">Merchant</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Presence Role
-                      </label>
-                      <input
-                        type="text"
-                        value={npcRef.presenceRole}
-                        onChange={(e) => updateNpcRef(index, { presenceRole: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="How does this NPC appear in the scene..."
-                        disabled={isSaving}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={npcRef.isHostile}
-                        onChange={(e) => updateNpcRef(index, { isHostile: e.target.checked })}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        disabled={isSaving}
-                      />
-                      <label className="ml-2 text-sm text-gray-700">Hostile</label>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Notes
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={npcRef.notes}
-                        onChange={(e) => updateNpcRef(index, { notes: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Notes about this NPC in this scene..."
-                        disabled={isSaving}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeNpcRef(index)}
-                      className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                      disabled={isSaving}
-                    >
-                      Remove NPC
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <NPCSelector
+            adventureId={adventureId}
+            selectedNPCs={npcRefs}
+            onNPCsChange={setNpcRefs}
+          />
 
           {/* Error Display */}
           {saveError && (
