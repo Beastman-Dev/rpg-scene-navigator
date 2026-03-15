@@ -22,17 +22,20 @@ export class AdventureRepository extends BaseRepository<Adventure> {
   }
 
   protected entityToRow(entity: Partial<Adventure>): any {
-    return {
-      id: entity.id,
-      title: entity.title,
-      description: entity.description,
-      starting_scene_id: entity.startingSceneId,
-      tags: entity.tags,
-      status: entity.status,
-      author: entity.author,
-      created_at: entity.createdAt,
-      updated_at: entity.updatedAt
-    };
+    const row: any = {};
+    
+    // Only include fields that are actually present in the entity
+    if (entity.id !== undefined) row.id = entity.id;
+    if (entity.title !== undefined) row.title = entity.title;
+    if (entity.description !== undefined) row.description = entity.description;
+    if (entity.startingSceneId !== undefined) row.starting_scene_id = entity.startingSceneId;
+    if (entity.tags !== undefined) row.tags = entity.tags;
+    if (entity.status !== undefined) row.status = entity.status;
+    if (entity.author !== undefined) row.author = entity.author;
+    if (entity.createdAt !== undefined) row.created_at = entity.createdAt;
+    if (entity.updatedAt !== undefined) row.updated_at = entity.updatedAt;
+    
+    return row;
   }
 
   /**

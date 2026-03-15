@@ -35,6 +35,14 @@ export function SceneEditor({ scene, adventureId, onSave, onCancel, isLoading = 
   const [exitOptions, setExitOptions] = useState<ExitOption[]>([]);
   const [npcRefs, setNpcRefs] = useState<SceneNpcRef[]>([]);
 
+  // Load exits and NPCs when editing an existing scene
+  useEffect(() => {
+    if (scene) {
+      setExitOptions(scene.exitOptions || []);
+      setNpcRefs(scene.sceneNpcRefs || []);
+    }
+  }, [scene]);
+
   const {
     register,
     handleSubmit,
@@ -98,7 +106,15 @@ export function SceneEditor({ scene, adventureId, onSave, onCancel, isLoading = 
         return;
       }
 
-      await onSave(data);
+      // Include exitOptions and npcRefs in the save data
+      const fullSceneData = {
+        ...data,
+        exitOptions,
+        sceneNpcRefs: npcRefs,
+        adventureId
+      };
+
+      await onSave(fullSceneData);
       reset();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save scene';
@@ -205,7 +221,7 @@ export function SceneEditor({ scene, adventureId, onSave, onCancel, isLoading = 
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form id="scene-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

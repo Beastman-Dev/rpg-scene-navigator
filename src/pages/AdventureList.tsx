@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, MapPin } from 'lucide-react';
 import type { Adventure, AdventureStatus } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
 
@@ -10,6 +10,8 @@ interface AdventureListProps {
   onEditAdventure: (adventure: Adventure) => void;
   onDeleteAdventure: (adventure: Adventure) => void;
   onAdventureSaved?: () => void; // Add callback for adventure save
+  setCurrentView?: (view: string) => void; // Add setCurrentView prop
+  setSelectedAdventure?: (adventure: Adventure) => void; // Add setSelectedAdventure prop
 }
 
 export function AdventureList({ 
@@ -17,7 +19,9 @@ export function AdventureList({
   onSelectAdventure, 
   onEditAdventure, 
   onDeleteAdventure,
-  onAdventureSaved 
+  onAdventureSaved,
+  setCurrentView,
+  setSelectedAdventure
 }: AdventureListProps) {
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,6 +237,16 @@ export function AdventureList({
                 >
                   <Edit className="h-4 w-4" />
                   Edit
+                </button>
+                <button
+                  onClick={() => {
+                    if (setSelectedAdventure) setSelectedAdventure(adventure);
+                    if (setCurrentView) setCurrentView('scenes');
+                  }}
+                  className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Scenes
                 </button>
                 <button
                   onClick={() => handleDelete(adventure)}

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, ArrowUp, ArrowDown, Eye, EyeOff, MapPin, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, ArrowUp, ArrowDown, Eye, EyeOff, MapPin, Users, ArrowLeft } from 'lucide-react';
 import type { Scene, SceneType } from '@/types';
 import { SceneRepository } from '@/repositories';
 import { getDatabaseManager } from '@/database/connection';
@@ -11,6 +11,7 @@ interface SceneListProps {
   onEditScene: (scene: Scene) => void;
   onDeleteScene: (scene: Scene) => void;
   onCreateScene: () => void;
+  onBack: () => void;
 }
 
 export function SceneList({ 
@@ -18,7 +19,8 @@ export function SceneList({
   onSelectScene, 
   onEditScene, 
   onDeleteScene,
-  onCreateScene 
+  onCreateScene,
+  onBack
 }: SceneListProps) {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +146,7 @@ export function SceneList({
             const tempOrder = previousScene.sortOrder;
             await sceneRepo.update(previousScene.id, { sortOrder: currentScene.sortOrder });
             await sceneRepo.update(currentScene.id, { sortOrder: tempOrder });
+            await loadScenes(); // Reload to reflect changes
           }
         }
       }
@@ -173,6 +176,7 @@ export function SceneList({
             const tempOrder = nextScene.sortOrder;
             await sceneRepo.update(nextScene.id, { sortOrder: currentScene.sortOrder });
             await sceneRepo.update(currentScene.id, { sortOrder: tempOrder });
+            await loadScenes(); // Reload to reflect changes
           }
         }
       }
@@ -210,7 +214,16 @@ export function SceneList({
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold">Scenes</h2>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Adventures
+          </button>
+          <h2 className="text-2xl font-semibold">Scenes</h2>
+        </div>
         <div className="flex gap-4 items-center">
           <button
             onClick={onCreateScene}

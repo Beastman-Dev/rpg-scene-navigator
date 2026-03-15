@@ -38,31 +38,36 @@ export class SceneRepository extends BaseRepository<Scene> {
   }
 
   protected entityToRow(entity: Partial<Scene>): any {
-    return {
-      id: entity.id,
-      name: entity.name,
-      type: entity.type,
-      location: entity.location,
-      tags: entity.tags,
-      summary: entity.summary,
-      gm_description: entity.gmDescription,
-      read_aloud: entity.readAloud,
-      atmosphere: entity.atmosphere,
-      entry_conditions: entity.entryConditions,
-      objectives: entity.objectives,
-      complications: entity.complications,
-      clues: entity.clues,
-      interactive_elements: entity.interactiveElements,
-      failure_states: entity.failureStates,
-      success_states: entity.successStates,
-      rewards: entity.rewards,
-      factions: entity.factions,
-      can_end_session_here: entity.canEndSessionHere,
-      sort_order: entity.sortOrder,
-      adventure_id: entity.adventureId,
-      created_at: entity.createdAt,
-      updated_at: entity.updatedAt
-    };
+    const row: any = {};
+    
+    // Only include fields that are actually present in the entity
+    if (entity.id !== undefined) row.id = entity.id;
+    if (entity.name !== undefined) row.name = entity.name;
+    if (entity.type !== undefined) row.type = entity.type;
+    if (entity.location !== undefined) row.location = entity.location;
+    if (entity.tags !== undefined) row.tags = entity.tags;
+    if (entity.summary !== undefined) row.summary = entity.summary;
+    if (entity.gmDescription !== undefined) row.gm_description = entity.gmDescription;
+    if (entity.readAloud !== undefined) row.read_aloud = entity.readAloud;
+    if (entity.atmosphere !== undefined) row.atmosphere = entity.atmosphere;
+    if (entity.entryConditions !== undefined) row.entry_conditions = entity.entryConditions;
+    if (entity.objectives !== undefined) row.objectives = entity.objectives;
+    if (entity.complications !== undefined) row.complications = entity.complications;
+    if (entity.clues !== undefined) row.clues = entity.clues;
+    if (entity.interactiveElements !== undefined) row.interactive_elements = entity.interactiveElements;
+    if (entity.failureStates !== undefined) row.failure_states = entity.failureStates;
+    if (entity.successStates !== undefined) row.success_states = entity.successStates;
+    if (entity.rewards !== undefined) row.rewards = entity.rewards;
+    if (entity.factions !== undefined) row.factions = entity.factions;
+    if (entity.canEndSessionHere !== undefined) row.can_end_session_here = entity.canEndSessionHere;
+    if (entity.sortOrder !== undefined) row.sort_order = entity.sortOrder;
+    if (entity.adventureId !== undefined) row.adventure_id = entity.adventureId;
+    if (entity.exitOptions !== undefined) row.exit_options = entity.exitOptions;
+    if (entity.sceneNpcRefs !== undefined) row.scene_npcs = entity.sceneNpcRefs;
+    if (entity.createdAt !== undefined) row.created_at = entity.createdAt;
+    if (entity.updatedAt !== undefined) row.updated_at = entity.updatedAt;
+    
+    return row;
   }
 
   /**
@@ -70,49 +75,12 @@ export class SceneRepository extends BaseRepository<Scene> {
    */
   async findByAdventure(adventureId: string): Promise<{ success: boolean; data?: Scene[]; error?: string }> {
     try {
-      const sql = `
-        SELECT s.*, 
-               JSON_GROUP_ARRAY(
-                 JSON_OBJECT(
-                   'npcId', sn.npc_id,
-                   'presenceRole', sn.presence_role,
-                   'isHostile', sn.is_hostile,
-                   'notes', sn.notes
-                 )
-               ) as scene_npcs,
-               JSON_GROUP_ARRAY(
-                 JSON_OBJECT(
-                   'id', eo.id,
-                   'label', eo.label,
-                   'destinationSceneId', eo.destination_scene_id,
-                   'conditionText', eo.condition_text,
-                   'resultText', eo.result_text,
-                   'stateChanges', eo.state_changes,
-                   'sortOrder', eo.sort_order
-                 )
-               ) as exit_options
-        FROM scenes s
-        LEFT JOIN scene_npcs sn ON s.id = sn.scene_id
-        LEFT JOIN exit_options eo ON s.id = eo.scene_id
-        WHERE s.adventure_id = ?
-        GROUP BY s.id
-        ORDER BY s.sort_order, s.created_at
-      `;
-      
+      const sql = `SELECT * FROM scenes WHERE adventure_id = ? ORDER BY sort_order, created_at`;
       const rows = this.db.prepare(sql).all(adventureId);
       
-      const entities = rows.map((row: any) => {
+      const entities = rows.map(row => {
         let processedRow = this.parseJsonFields(row, this.getTableName());
         processedRow = this.parseBooleanFields(processedRow, this.getTableName());
-        
-        // Parse nested JSON arrays
-        if (processedRow.scene_npcs) {
-          processedRow.scene_npcs = JSON.parse(processedRow.scene_npcs).filter((npc: any) => npc.npcId);
-        }
-        if (processedRow.exit_options) {
-          processedRow.exit_options = JSON.parse(processedRow.exit_options).filter((exit: any) => exit.id);
-        }
-        
         return this.rowToEntity(processedRow);
       });
 

@@ -13,6 +13,7 @@ type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'sce
 function App() {
   const [currentView, setCurrentView] = useState<View>('list');
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | undefined>();
+  const [selectedScene, setSelectedScene] = useState<Scene | undefined>();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -38,6 +39,7 @@ function App() {
   const handleBackToList = () => {
     setCurrentView('list');
     setSelectedAdventure(undefined);
+    setSelectedScene(undefined);
     setSaveError(null);
   };
 
@@ -162,8 +164,8 @@ function App() {
   };
 
   const handleEditScene = (scene: Scene) => {
+    setSelectedScene(scene);
     setCurrentView('scene-edit');
-    setSelectedAdventure(undefined); // Clear selected adventure when editing scene
   };
 
   const handleSaveScene = async (data: any) => {
@@ -177,13 +179,28 @@ function App() {
       }
 
       const sceneRepo = new SceneRepository(dbManager.getConnection());
-      const result = await sceneRepo.create(data);
       
-      if (result.success) {
-        console.log('Scene created successfully');
-        setCurrentView('scenes');
+      if (selectedScene) {
+        // Update existing scene
+        console.log('📝 App - Updating existing scene:', selectedScene.id);
+        const result = await sceneRepo.update(selectedScene.id, data);
+        if (result.success) {
+          console.log('✅ App - Scene updated successfully');
+          setCurrentView('scenes');
+          setSelectedScene(undefined);
+        } else {
+          throw new Error(result.error || 'Failed to update scene');
+        }
       } else {
-        throw new Error(result.error || 'Failed to create scene');
+        // Create new scene
+        console.log('🆕 App - Creating new scene');
+        const result = await sceneRepo.create(data);
+        if (result.success) {
+          console.log('✅ App - Scene created successfully');
+          setCurrentView('scenes');
+        } else {
+          throw new Error(result.error || 'Failed to create scene');
+        }
       }
     } catch (error) {
       console.error('Save scene error:', error);
@@ -203,6 +220,8 @@ function App() {
             onSelectAdventure={handleSelectAdventure}
             onEditAdventure={handleEditAdventure}
             onDeleteAdventure={handleDeleteAdventure}
+            setCurrentView={setCurrentView}
+            setSelectedAdventure={setSelectedAdventure}
           />
         );
       
@@ -233,16 +252,18 @@ function App() {
             onEditScene={handleEditScene}
             onDeleteScene={handleDeleteScene}
             onCreateScene={handleCreateScene}
+            onBack={handleBackToList}
           />
         );
       
       case 'scene-edit':
         return (
           <SceneEditor
-            scene={undefined} // TODO: Pass selected scene
+            scene={selectedScene}
             adventureId={selectedAdventure?.id || ''}
             onSave={handleSaveScene}
             onCancel={handleBackToList}
+            isLoading={isSaving}
           />
         );
       

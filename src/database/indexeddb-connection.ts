@@ -245,13 +245,27 @@ class IndexedDBStatement implements Statement {
     return result;
   }
 
-  private handleSelectAll(_params: any[]): any[] {
+  private handleSelectAll(params: any[]): any[] {
     const tableMatch = this.sql.match(/FROM (\w+)/);
     if (!tableMatch) return [];
     
     const tableName = tableMatch[1];
     const storageKey = `rpg-db-${tableName}`;
-    const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    let data = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    
+    // Parse and apply WHERE clause filtering
+    const whereMatch = this.sql.match(/WHERE\s+(.+?)(?:\s+GROUP\s+BY|\s+ORDER\s+BY|$)/i);
+    if (whereMatch) {
+      const whereClause = whereMatch[1].trim();
+      
+      // Handle simple equality conditions like "adventure_id = ?" or "s.adventure_id = ?"
+      const eqMatch = whereClause.match(/(\w+)\.?(\w+)?\s*=\s*\?/);
+      if (eqMatch) {
+        const colName = eqMatch[2] || eqMatch[1]; // Handle both "table.col" and "col" formats
+        const paramValue = params[0];
+        data = data.filter((r: any) => r[colName] === paramValue);
+      }
+    }
     
     return data;
   }

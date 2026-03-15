@@ -208,7 +208,9 @@ export const JSON_FIELDS = {
     'failure_states',
     'success_states',
     'rewards',
-    'factions'
+    'factions',
+    'exit_options',
+    'scene_npcs'
   ],
   exit_options: ['state_changes'],
   scene_run_states: [
