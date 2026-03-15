@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0",
+  "fileType": "session",
+  "session": {
+    "id": "session_old_necropolis_retreat_01",
+    "adventureId": "old_necropolis_retreat",
+    "sessionNumber": 1,
+    "startedAt": "2026-03-14T18:00:00Z",
+    "endedAt": "2026-03-14T21:20:00Z",
+    "startingSceneId": "scene_collapsed_chamber",
+    "currentSceneId": "scene_safe_pause_berm",
+    "endingSceneId": "scene_safe_pause_berm",
+    "isAdventureComplete": false,
+    "summary": "The party broke the initial patrol withdrawal, killed Verrin, pressed into the prepared fallback position, and ended the session after securing the rubble line without resolving the larger command structure behind the patrol."
+  },
+  "sceneRunStates": [
+    {
+      "sceneId": "scene_collapsed_chamber",
+      "enteredAt": "2026-03-14T18:05:00Z",
+      "exitedAt": "2026-03-14T19:10:00Z",
+      "notes": "Opening contact escalated quickly after the party pressed the armed figures in the chamber. Visibility and cover mattered throughout. Mehmet's firebolt dropped Verrin, which triggered Ilya's retreat order.",
+      "playerDecisions": [
+        "The party chose aggression rather than negotiation",
+        "The party pursued the retreating patrol immediately instead of pausing to search"
+      ],
+      "outcome": "The patrol executed a fighting withdrawal under pressure.",
+      "chosenExitOptionId": "exit_pursue_immediately",
+      "unresolvedThreads": [
+        "Enemy reinforcements were signaled but not yet fully encountered",
+        "The enemy fallback position had not yet been fully understood"
+      ],
+      "loreUpdates": [
+        "Ilya was established as a surviving retreat leader",
+        "The patrol demonstrated organized fallback discipline rather than random territorial behavior"
+      ],
+      "npcStateChanges": [
+        "Verrin killed",
+        "Ilya escaped the opening chamber",
+        "Sable withdrew with the retreating patrol"
+      ],
+      "lootAndRewards": [
+        "Immediate battlefield insight into enemy discipline"
+      ],
+      "worldStateChanges": [
+        "Opening chamber contested and then abandoned by the patrol",
+        "Enemy signal for reinforcements confirmed"
+      ]
+    },
+    {
+      "sceneId": "scene_fallback_berm",
+      "enteredAt": "2026-03-14T19:18:00Z",
+      "exitedAt": "2026-03-14T21:10:00Z",
+      "notes": "The party reached the fallback line before the enemy fully stabilized, but the position was better prepared than the opening chamber. Pressure on the line suggested the patrol had rehearsed this maneuver. The party chose to consolidate instead of forcing immediate escalation into deeper contact.",
+      "playerDecisions": [
+        "The party maintained pressure at the fallback position",
+        "The party chose to secure the line and stop rather than chase into the next response layer"
+      ],
+      "outcome": "The fallback position was disrupted and partially secured by the party.",
+      "chosenExitOptionId": "exit_secure_line_and_pause",
+      "unresolvedThreads": [
+        "The reinforcement element under stronger leadership had not yet been directly confronted",
+        "The deeper command structure behind the patrol remained unknown"
+      ],
+      "loreUpdates": [
+        "The fallback site was clearly preselected and tactically meaningful",
+        "The patrol's withdrawal pattern suggested a larger layered defense"
+      ],
+      "npcStateChanges": [
+        "Ilya's exact position became uncertain after the fallback engagement",
+        "Any surviving patrol members scattered or withdrew deeper"
+      ],
+      "lootAndRewards": [
+        "Control of the fallback rubble line",
+        "Evidence of prepared defensive structure"
+      ],
+      "worldStateChanges": [
+        "Party temporarily controlled the secondary rubble line",
+        "Enemy outer defensive layer was damaged"
+      ]
+    },
+    {
+      "sceneId": "scene_safe_pause_berm",
+      "enteredAt": "2026-03-14T21:12:00Z",
+      "exitedAt": "2026-03-14T21:20:00Z",
+      "notes": "Session concluded at the secured fallback line. The party held the position long enough to regroup and prepare for a later push.",
+      "playerDecisions": [
+        "The party ended the session in a consolidated mid-adventure position"
+      ],
+      "outcome": "Temporary safe halt established.",
+      "chosenExitOptionId": null,
+      "unresolvedThreads": [
+        "Serit's reinforcement element remains ahead",
+        "The reason the patrol was defending this route remains unresolved"
+      ],
+      "loreUpdates": [
+        "The Necropolis presence in this area appears organized in layers"
+      ],
+      "npcStateChanges": [],
+      "lootAndRewards": [],
+      "worldStateChanges": [
+        "Adventure paused at a stable resume point"
+      ]
+    }
+  ]
+}

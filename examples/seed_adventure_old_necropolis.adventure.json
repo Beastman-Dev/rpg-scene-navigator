@@ -1,0 +1,967 @@
+{
+  "schemaVersion": "1.0",
+  "fileType": "adventure",
+  "adventure": {
+    "id": "old_necropolis_retreat",
+    "title": "Old Necropolis Retreat",
+    "description": "A branching pursuit scenario in which the party collides with a withdrawing hostile patrol, chooses whether to press, investigate, or regroup, and risks running into reinforcements or uncovering useful intelligence.",
+    "startingSceneId": "scene_collapsed_chamber",
+    "tags": ["necropolis", "combat", "pursuit", "investigation", "branching"],
+    "status": "active",
+    "author": "Bill Eastman",
+    "createdAt": "2026-03-14T15:00:00Z",
+    "updatedAt": "2026-03-14T15:00:00Z"
+  },
+  "npcs": [
+    {
+      "id": "npc_ilya",
+      "name": "Ilya",
+      "role": "Retreat leader",
+      "description": "A sharp-voiced patrol survivor trying to preserve the remnants of her unit under pressure.",
+      "faction": "Necropolis Patrol",
+      "statBlock": {
+        "system": "generic",
+        "summary": "Mobile skirmisher leader with whistle signal, short blade, and tactical withdrawal instincts.",
+        "armorClass": 14,
+        "hitPoints": 18,
+        "speed": "30 ft",
+        "attacks": [
+          {
+            "name": "Short Blade",
+            "toHit": "+4",
+            "damage": "1d6+2"
+          },
+          {
+            "name": "Light Crossbow",
+            "toHit": "+4",
+            "damage": "1d8+2"
+          }
+        ],
+        "traits": [
+          "Bonus action disengage once per scene",
+          "Prioritizes retreat over lethal commitment"
+        ]
+      },
+      "notes": "Called Verrin's name before ordering the retreat.",
+      "tags": ["leader", "patrol", "survivor"]
+    },
+    {
+      "id": "npc_verrin",
+      "name": "Verrin",
+      "role": "Fallen frontline fighter",
+      "description": "A brutal, heavy-set patrol enforcer whose death triggered the retreat.",
+      "faction": "Necropolis Patrol",
+      "statBlock": {
+        "system": "generic",
+        "summary": "Tough melee bruiser.",
+        "armorClass": 15,
+        "hitPoints": 24,
+        "speed": "25 ft",
+        "attacks": [
+          {
+            "name": "Heavy Cleaver",
+            "toHit": "+5",
+            "damage": "1d10+3"
+          }
+        ],
+        "traits": [
+          "Advantage on saves vs fear while conscious"
+        ]
+      },
+      "notes": "Intended to begin the adventure already dead or dying by the time the GM starts active tracking.",
+      "tags": ["fallen", "bruiser", "patrol"]
+    },
+    {
+      "id": "npc_sable",
+      "name": "Sable",
+      "role": "Crossbow overwatch",
+      "description": "A disciplined rear guard shooter using darkness and rubble for cover.",
+      "faction": "Necropolis Patrol",
+      "statBlock": {
+        "system": "generic",
+        "summary": "Ranged support combatant.",
+        "armorClass": 13,
+        "hitPoints": 14,
+        "speed": "30 ft",
+        "attacks": [
+          {
+            "name": "Crossbow",
+            "toHit": "+5",
+            "damage": "1d8+2"
+          }
+        ],
+        "traits": [
+          "Can hide in dim light as an action"
+        ]
+      },
+      "notes": "May flee or be isolated depending on pursuit choices.",
+      "tags": ["ranged", "overwatch", "patrol"]
+    },
+    {
+      "id": "npc_dren",
+      "name": "Dren",
+      "role": "Reinforcement scout",
+      "description": "A cautious advance scout moving ahead of the reinforcement element.",
+      "faction": "Necropolis Patrol",
+      "statBlock": {
+        "system": "generic",
+        "summary": "Fast scout and messenger.",
+        "armorClass": 14,
+        "hitPoints": 12,
+        "speed": "35 ft",
+        "attacks": [
+          {
+            "name": "Knife",
+            "toHit": "+4",
+            "damage": "1d4+2"
+          },
+          {
+            "name": "Shortbow",
+            "toHit": "+4",
+            "damage": "1d6+2"
+          }
+        ],
+        "traits": [
+          "May disengage and relocate without provoking once per scene"
+        ]
+      },
+      "notes": "Useful for testing chase, interrogation, or escape branches.",
+      "tags": ["scout", "reinforcement"]
+    },
+    {
+      "id": "npc_serit",
+      "name": "Serit",
+      "role": "Reinforcement sergeant",
+      "description": "A hard, efficient veteran tasked with stabilizing the retreat and preventing pursuit.",
+      "faction": "Necropolis Patrol",
+      "statBlock": {
+        "system": "generic",
+        "summary": "Veteran commander with shield and disciplined squad tactics.",
+        "armorClass": 16,
+        "hitPoints": 32,
+        "speed": "30 ft",
+        "attacks": [
+          {
+            "name": "Spear",
+            "toHit": "+5",
+            "damage": "1d8+3"
+          },
+          {
+            "name": "Shield Bash",
+            "toHit": "+5",
+            "damage": "1d4+3"
+          }
+        ],
+        "traits": [
+          "Allied patrol members gain +1 AC while adjacent",
+          "Will negotiate only to buy time"
+        ]
+      },
+      "notes": "Can anchor combat, parley, or controlled withdrawal scenes.",
+      "tags": ["sergeant", "reinforcements", "veteran"]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene_collapsed_chamber",
+      "name": "Collapsed Chamber Skirmish",
+      "type": "combat",
+      "location": "Old Necropolis - Rubble Chamber",
+      "tags": ["opening", "combat", "retreat"],
+      "summary": "The party catches the surviving patrol in the middle of a fighting withdrawal over a rubble berm.",
+      "gmDescription": "Opening action scene. The patrol is already disengaging after Verrin falls. The real choice is whether the party presses, pauses, or attempts to exploit the confusion.",
+      "readAloud": "Dust drifts in the thin light as shadowed figures scramble backward over the rubble berm. One of them shouts a dead man's name, then barks a retreat order as a whistle signal cuts through the chamber.",
+      "atmosphere": "Confused violence, dim visibility, immediate tactical urgency.",
+      "entryConditions": [
+        "Adventure begins here"
+      ],
+      "objectives": [
+        "Pressure the patrol",
+        "Choose whether to pursue, search, or regroup"
+      ],
+      "complications": [
+        "Dim light gives ranged attackers trouble",
+        "Reinforcements have already been signaled",
+        "Broken terrain slows direct pursuit"
+      ],
+      "clues": [
+        "The patrol is executing a practiced fallback rather than routing blindly",
+        "A whistle signal confirms nearby support",
+        "Verrin was important enough for Ilya to call out his name in the chaos"
+      ],
+      "interactiveElements": [
+        "Rubble berm",
+        "Fallen body",
+        "Dim-light firing lanes"
+      ],
+      "failureStates": [
+        "The patrol escapes cleanly and sets up a stronger defense",
+        "The party advances recklessly into reinforcements"
+      ],
+      "successStates": [
+        "The party pressures the retreat and may isolate survivors",
+        "The party secures immediate evidence from the chamber"
+      ],
+      "rewards": [
+        "Immediate battlefield clues",
+        "Chance to seize equipment from the fallen"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_ilya",
+          "presenceRole": "retreating leader",
+          "isHostile": true,
+          "notes": "Attempts to withdraw rather than hold ground."
+        },
+        {
+          "npcId": "npc_verrin",
+          "presenceRole": "fallen combatant",
+          "isHostile": true,
+          "notes": "Dead or dying by the time active tracking begins."
+        },
+        {
+          "npcId": "npc_sable",
+          "presenceRole": "crossbow overwatch",
+          "isHostile": true,
+          "notes": "Uses cover and darkness."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_pursue_immediately",
+          "label": "Pursue the retreating patrol",
+          "destinationSceneId": "scene_fallback_berm",
+          "conditionText": "Choose immediate pursuit with no pause.",
+          "resultText": "The party surges over the broken stone before the enemy can fully reset.",
+          "stateChanges": [
+            "Mark patrol as pressured",
+            "Mark reinforcements as still inbound"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_search_chamber",
+          "label": "Search the chamber first",
+          "destinationSceneId": "scene_aftermath_search",
+          "conditionText": "Choose caution over immediate pursuit.",
+          "resultText": "The party pauses among rubble and bodies to gather what they can before moving.",
+          "stateChanges": [
+            "Mark pursuit momentum reduced"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "id": "exit_hold_and_listen",
+          "label": "Hold position and assess",
+          "destinationSceneId": "scene_tactical_pause",
+          "conditionText": "Choose to regroup rather than commit immediately.",
+          "resultText": "The chamber falls into tense stillness as the party listens for movement deeper in the dark.",
+          "stateChanges": [
+            "Mark chamber temporarily secured"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "canEndSessionHere": false,
+      "sortOrder": 1
+    },
+    {
+      "id": "scene_aftermath_search",
+      "name": "Aftermath Search",
+      "type": "investigation",
+      "location": "Old Necropolis - Rubble Chamber",
+      "tags": ["investigation", "loot", "clues"],
+      "summary": "The party inspects the battlefield and fallen patrol elements before deciding whether to press onward.",
+      "gmDescription": "A clue-and-loot scene that rewards caution but costs momentum. Good for testing note entry, discovered clues, and multiple exits.",
+      "readAloud": "With the sounds of retreat fading into deeper stone, the chamber resolves into wreckage: blood on broken masonry, a dropped bolt case, a snapped strap, and the dead weight of what the enemy chose not to carry.",
+      "atmosphere": "A lull after violence, tense and forensic.",
+      "entryConditions": [
+        "Reached by delaying pursuit after the opening skirmish"
+      ],
+      "objectives": [
+        "Recover useful information",
+        "Decide whether to continue pursuit or prepare for contact"
+      ],
+      "complications": [
+        "Time spent here increases reinforcement risk",
+        "Some evidence is ambiguous without interpretation"
+      ],
+      "clues": [
+        "The patrol expected to regroup at a prepared fallback point",
+        "The whistle code suggests more than one surviving element",
+        "One mark on a stone edge may indicate a route used repeatedly"
+      ],
+      "interactiveElements": [
+        "Verrin's body",
+        "Dropped gear",
+        "Whistle signal traces",
+        "Scuffed withdrawal path"
+      ],
+      "failureStates": [
+        "The party lingers too long and is approached by reinforcements at a disadvantage"
+      ],
+      "successStates": [
+        "The party finds intel about fallback positioning",
+        "The party secures minor loot or tactical advantage"
+      ],
+      "rewards": [
+        "Recovered ammunition",
+        "Useful route clue",
+        "Possible identification token"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_verrin",
+          "presenceRole": "corpse / evidence source",
+          "isHostile": false,
+          "notes": "May be searched or identified."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_track_to_fallback",
+          "label": "Track the patrol to the fallback position",
+          "destinationSceneId": "scene_fallback_berm",
+          "conditionText": "Choose to press on using gathered clues.",
+          "resultText": "Following scrape marks and scattered debris, the party pushes deeper toward the enemy's next stand.",
+          "stateChanges": [
+            "Add clue: fallback route identified"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_prepare_for_contact",
+          "label": "Prepare an ambush position and wait",
+          "destinationSceneId": "scene_reinforcement_contact",
+          "conditionText": "Choose to let the next enemy move into your space.",
+          "resultText": "The party settles into cover and waits for the response element to come to them.",
+          "stateChanges": [
+            "Mark party braced for incoming contact"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "id": "exit_end_session_search",
+          "label": "Secure the chamber and stop here for now",
+          "destinationSceneId": "scene_safe_pause_chamber",
+          "conditionText": "Choose to end the active push and regroup.",
+          "resultText": "The party consolidates control of the chamber and delays further movement.",
+          "stateChanges": [
+            "Mark chamber as temporary safe hold"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 2
+    },
+    {
+      "id": "scene_tactical_pause",
+      "name": "Tactical Pause",
+      "type": "transition",
+      "location": "Old Necropolis - Rubble Chamber Edge",
+      "tags": ["transition", "assessment", "choice"],
+      "summary": "The party regroups, listens, and decides whether to advance, fortify, or disengage temporarily.",
+      "gmDescription": "A pacing scene that provides a natural table pause and tests session-safe transitions.",
+      "readAloud": "Beyond the berm, the darkness swallows the last scrape of boots. For a heartbeat the chamber holds its breath, broken only by settling dust and the faint memory of the whistle's echo.",
+      "atmosphere": "Stillness, uncertainty, constrained breathing room.",
+      "entryConditions": [
+        "Reached by choosing not to pursue immediately"
+      ],
+      "objectives": [
+        "Decide the party's next tempo",
+        "Regain situational awareness"
+      ],
+      "complications": [
+        "The enemy is repositioning somewhere ahead",
+        "Every moment of delay changes the next engagement"
+      ],
+      "clues": [
+        "Movement deeper in the passage is organized, not chaotic",
+        "The patrol expected the terrain ahead to work in their favor"
+      ],
+      "interactiveElements": [
+        "Listening point",
+        "Rubble cover",
+        "Possible chokepoint"
+      ],
+      "failureStates": [
+        "The party yields too much initiative"
+      ],
+      "successStates": [
+        "The party makes a deliberate, informed next move"
+      ],
+      "rewards": [
+        "Clearer tactical posture"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [],
+      "exitOptions": [
+        {
+          "id": "exit_advance_carefully",
+          "label": "Advance carefully toward the fallback route",
+          "destinationSceneId": "scene_fallback_berm",
+          "conditionText": "Choose a cautious advance.",
+          "resultText": "Weapons raised, the party moves into the dark after the retreating survivors.",
+          "stateChanges": [
+            "Mark party advancing cautiously"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_wait_for_enemy",
+          "label": "Hold and receive the next contact",
+          "destinationSceneId": "scene_reinforcement_contact",
+          "conditionText": "Choose to let the next move come to you.",
+          "resultText": "The party settles into defensible positions and waits.",
+          "stateChanges": [
+            "Mark party holding"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "id": "exit_pause_session",
+          "label": "Regroup here and end the session",
+          "destinationSceneId": "scene_safe_pause_chamber",
+          "conditionText": "Choose to stop before committing deeper.",
+          "resultText": "The party withdraws just enough to secure a temporary halt point.",
+          "stateChanges": [
+            "Mark temporary regroup"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 3
+    },
+    {
+      "id": "scene_fallback_berm",
+      "name": "Fallback Berm",
+      "type": "combat",
+      "location": "Old Necropolis - Secondary Rubble Line",
+      "tags": ["combat", "pursuit", "fallback"],
+      "summary": "The pursuing party reaches the enemy's prepared fallback position before or just as it stabilizes.",
+      "gmDescription": "This is the central pressure scene. It can become a sharp combat exchange, a broken retreat, or a transition into reinforcement contact.",
+      "readAloud": "The passage opens onto a broken ridge of stone and shattered masonry where the retreating patrol has already begun to turn. Crossbow lines angle through gaps in the rubble, and somewhere ahead a harsher voice starts issuing orders.",
+      "atmosphere": "Compressed violence, prepared defense, rising risk.",
+      "entryConditions": [
+        "Reached by pursuing or advancing from the opening area"
+      ],
+      "objectives": [
+        "Break the fallback line",
+        "Capture a survivor",
+        "Avoid being fixed in place for reinforcements"
+      ],
+      "complications": [
+        "The enemy has better cover here",
+        "Reinforcements may be moments away",
+        "Visibility remains poor"
+      ],
+      "clues": [
+        "The fallback site was chosen in advance",
+        "Someone more disciplined than Ilya may be coordinating the next response"
+      ],
+      "interactiveElements": [
+        "Rubble breastwork",
+        "Narrow lanes",
+        "Elevated firing points"
+      ],
+      "failureStates": [
+        "The party is pinned until reinforcements arrive",
+        "Key enemy survivors escape again"
+      ],
+      "successStates": [
+        "The fallback line breaks",
+        "A hostile is isolated for capture or questioning"
+      ],
+      "rewards": [
+        "Captured enemy",
+        "Control of the passage",
+        "Evidence of deeper organization"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_ilya",
+          "presenceRole": "desperate retreat leader",
+          "isHostile": true,
+          "notes": "May flee if line collapses."
+        },
+        {
+          "npcId": "npc_sable",
+          "presenceRole": "ranged support",
+          "isHostile": true,
+          "notes": "Uses rubble lanes."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_capture_survivor",
+          "label": "Take a survivor alive",
+          "destinationSceneId": "scene_interrogation_window",
+          "conditionText": "Choose if the party subdues or corners an enemy.",
+          "resultText": "With one foe cut off and the line broken, the party has a brief chance to force answers.",
+          "stateChanges": [
+            "Mark one patrol member captured"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_enemy_reinforcements_arrive",
+          "label": "Push forward before reinforcements fully deploy",
+          "destinationSceneId": "scene_reinforcement_contact",
+          "conditionText": "Choose to continue aggressive pressure.",
+          "resultText": "The fight spills forward just as the next enemy element closes in.",
+          "stateChanges": [
+            "Mark escalation to reinforcement scene"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "id": "exit_secure_line_and_pause",
+          "label": "Secure the fallback line and stop here",
+          "destinationSceneId": "scene_safe_pause_berm",
+          "conditionText": "Choose consolidation over immediate escalation.",
+          "resultText": "The party takes control of the rubble line and uses the breathing room to regroup.",
+          "stateChanges": [
+            "Mark fallback line secured"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 4
+    },
+    {
+      "id": "scene_reinforcement_contact",
+      "name": "Reinforcement Contact",
+      "type": "social",
+      "location": "Old Necropolis - Narrow Junction",
+      "tags": ["social", "standoff", "reinforcements"],
+      "summary": "The next enemy element arrives under Sergeant Serit, creating a tense window for parley, bluff, delay, or renewed violence.",
+      "gmDescription": "This scene is intentionally flexible: social pressure, threat exchange, bluffing, or transition back into combat. It helps test non-combat branching and summary generation.",
+      "readAloud": "Bootsteps echo from the dark ahead in disciplined cadence. A shielded figure emerges just far enough to be seen, spear low, voice level. 'Enough. Step back from my people and tell me why I should not close this passage with your bodies.'",
+      "atmosphere": "Controlled threat, military discipline, knife-edge negotiation.",
+      "entryConditions": [
+        "Reached when the enemy response element arrives or is awaited"
+      ],
+      "objectives": [
+        "Learn what the reinforcements know",
+        "Avoid fighting on the enemy's terms",
+        "Exploit hesitation or bluff"
+      ],
+      "complications": [
+        "Serit may only be talking to buy time",
+        "The surviving patrol may regroup behind him",
+        "A failed parley can collapse instantly into violence"
+      ],
+      "clues": [
+        "Serit expected contact but not this level of disruption",
+        "The patrol's fallback structure is part of a larger defensive logic",
+        "The enemy is trying to contain information as much as territory"
+      ],
+      "interactiveElements": [
+        "Narrow junction choke point",
+        "Sightline-limited negotiation distance",
+        "Shield line approach"
+      ],
+      "failureStates": [
+        "The party reveals too much",
+        "The enemy gains time to reorganize",
+        "The standoff turns into an unfavorable fight"
+      ],
+      "successStates": [
+        "The party extracts information",
+        "The party withdraws on favorable terms",
+        "The party provokes a mistake"
+      ],
+      "rewards": [
+        "Command-level clue",
+        "Potential negotiated pause",
+        "Opportunity to split the enemy"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_serit",
+          "presenceRole": "reinforcement commander",
+          "isHostile": true,
+          "notes": "Willing to parley briefly."
+        },
+        {
+          "npcId": "npc_dren",
+          "presenceRole": "advance scout",
+          "isHostile": true,
+          "notes": "May circle or observe while Serit talks."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_interrogation_opening",
+          "label": "Exploit hesitation and isolate a prisoner",
+          "destinationSceneId": "scene_interrogation_window",
+          "conditionText": "Choose if parley or pressure produces a vulnerable target.",
+          "resultText": "In the confusion of command and counter-command, one enemy is cut off long enough to seize.",
+          "stateChanges": [
+            "Mark prisoner opportunity created"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_withdraw_cleanly",
+          "label": "Withdraw with what you have learned",
+          "destinationSceneId": "scene_safe_pause_berm",
+          "conditionText": "Choose to end the engagement without pressing deeper.",
+          "resultText": "The party breaks contact in good order, carrying hard-won knowledge out of the dark.",
+          "stateChanges": [
+            "Mark controlled withdrawal"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "id": "exit_final_confrontation",
+          "label": "Force the issue into a final clash",
+          "destinationSceneId": "scene_command_revelation",
+          "conditionText": "Choose escalation over disengagement.",
+          "resultText": "The standoff fails, and the struggle shifts toward revelation and decisive outcome.",
+          "stateChanges": [
+            "Mark final escalation"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "canEndSessionHere": false,
+      "sortOrder": 5
+    },
+    {
+      "id": "scene_interrogation_window",
+      "name": "Interrogation Window",
+      "type": "investigation",
+      "location": "Old Necropolis - Secured Corner or Captive Hold",
+      "tags": ["investigation", "prisoner", "revelation"],
+      "summary": "The party has a narrow opportunity to question a captured enemy before circumstances close in again.",
+      "gmDescription": "Use this scene to test note capture, clue tracking, and lore update generation.",
+      "readAloud": "Pinned in shadow and stone, the captive looks less defiant than cornered. Nearby echoes carry just enough movement to remind everyone that this moment will not last.",
+      "atmosphere": "Urgent questioning under pressure.",
+      "entryConditions": [
+        "A survivor has been captured or isolated"
+      ],
+      "objectives": [
+        "Extract useful intelligence",
+        "Identify command structure",
+        "Learn what lies deeper ahead"
+      ],
+      "complications": [
+        "The captive may lie, stall, or give partial truths",
+        "Other enemies may still be maneuvering nearby"
+      ],
+      "clues": [
+        "The fallback was only the outer layer of a larger defensive plan",
+        "A deeper authority is controlling access through the area",
+        "Recent movement in the Necropolis is not random territorial behavior"
+      ],
+      "interactiveElements": [
+        "Prisoner pressure",
+        "Recovered insignia",
+        "Route sketching"
+      ],
+      "failureStates": [
+        "The captive gives only noise",
+        "The questioning takes too long and costs position"
+      ],
+      "successStates": [
+        "The party leaves with actionable intelligence",
+        "The party identifies a new lore thread or faction lead"
+      ],
+      "rewards": [
+        "New named contact or rank",
+        "Route information",
+        "Campaign lore update"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_dren",
+          "presenceRole": "possible captive",
+          "isHostile": true,
+          "notes": "Default captive for this scene, but may be replaced by another survivor in actual play."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_stop_after_interrogation",
+          "label": "End the push and regroup with the new information",
+          "destinationSceneId": "scene_safe_pause_berm",
+          "conditionText": "Choose to preserve gains and stop here.",
+          "resultText": "The party withdraws to consolidate what they learned before the enemy can recover.",
+          "stateChanges": [
+            "Mark intel extracted"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_press_to_revelation",
+          "label": "Press immediately toward the deeper command source",
+          "destinationSceneId": "scene_command_revelation",
+          "conditionText": "Choose to convert intelligence into immediate action.",
+          "resultText": "Armed with fresh answers, the party drives onward before the window closes.",
+          "stateChanges": [
+            "Mark deeper lead pursued"
+          ],
+          "sortOrder": 2
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 6
+    },
+    {
+      "id": "scene_command_revelation",
+      "name": "Command Revelation",
+      "type": "revelation",
+      "location": "Old Necropolis - Command Threshold",
+      "tags": ["revelation", "climax", "lore"],
+      "summary": "The party reaches the point where the patrol's behavior starts to make strategic sense, revealing a broader pattern and setting up future consequences.",
+      "gmDescription": "This is the capstone scene for the seed adventure. It does not need to resolve everything; it should generate a satisfying adventure summary and lore update summary.",
+      "readAloud": "The passage beyond opens not into chaos, but order: a defended threshold, marked routes, evidence of repeated movement, and the unmistakable sense that the patrol was only the outer skin of something larger and carefully hidden.",
+      "atmosphere": "Discovery, dread, strategic widening of scope.",
+      "entryConditions": [
+        "Reached through successful pressure, interrogation, or deliberate escalation"
+      ],
+      "objectives": [
+        "Understand what the patrol was protecting",
+        "Secure actionable information",
+        "Choose whether to push further or end on the revelation"
+      ],
+      "complications": [
+        "The deeper force may still be out of reach",
+        "The party may not have the strength to continue immediately"
+      ],
+      "clues": [
+        "The Necropolis presence here is organized around controlled access, not random scavenging",
+        "Recent patrol behavior suggests larger strategic preparation",
+        "Someone with authority beyond the immediate patrol is shaping events"
+      ],
+      "interactiveElements": [
+        "Threshold markers",
+        "Supply traces",
+        "Route control evidence"
+      ],
+      "failureStates": [
+        "The party recognizes the scale of the threat too late to capitalize on the discovery"
+      ],
+      "successStates": [
+        "The party exits with a major lore update and future hook",
+        "The adventure closes on a clear strategic reveal"
+      ],
+      "rewards": [
+        "Major campaign hook",
+        "Adventure-end summary material",
+        "New faction or command insight"
+      ],
+      "factions": [
+        "Necropolis Patrol"
+      ],
+      "sceneNpcRefs": [
+        {
+          "npcId": "npc_serit",
+          "presenceRole": "possible final opposing commander",
+          "isHostile": true,
+          "notes": "May appear directly or remain implied depending on prior outcomes."
+        }
+      ],
+      "exitOptions": [
+        {
+          "id": "exit_complete_adventure",
+          "label": "Conclude the adventure on the revelation",
+          "destinationSceneId": "scene_adventure_complete",
+          "conditionText": "Choose to end with discovery and carry consequences forward.",
+          "resultText": "The party withdraws with proof that the conflict is larger than the patrol itself.",
+          "stateChanges": [
+            "Mark adventure complete"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "id": "exit_pause_after_revelation",
+          "label": "End the session here and continue next time",
+          "destinationSceneId": "scene_safe_pause_revelation",
+          "conditionText": "Choose to preserve the cliffhanger for the next session.",
+          "resultText": "The party holds at the edge of a larger mystery, poised for the next descent.",
+          "stateChanges": [
+            "Mark cliffhanger established"
+          ],
+          "sortOrder": 2
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 7
+    },
+    {
+      "id": "scene_safe_pause_chamber",
+      "name": "Safe Pause - Chamber Secured",
+      "type": "downtime",
+      "location": "Old Necropolis - Rubble Chamber",
+      "tags": ["safe-pause", "session-end"],
+      "summary": "A temporary safe endpoint after securing the opening chamber.",
+      "gmDescription": "Utility node for session-end testing.",
+      "readAloud": "For the moment, the chamber is yours. Dust settles. Weapons lower a fraction. Whatever comes next will come later.",
+      "atmosphere": "Temporary safety, incomplete closure.",
+      "entryConditions": [
+        "Reached by choosing to stop after the chamber or search"
+      ],
+      "objectives": [
+        "End session cleanly"
+      ],
+      "complications": [],
+      "clues": [],
+      "interactiveElements": [],
+      "failureStates": [],
+      "successStates": [
+        "Session ends in a stable location"
+      ],
+      "rewards": [],
+      "factions": [],
+      "sceneNpcRefs": [],
+      "exitOptions": [
+        {
+          "id": "exit_resume_from_chamber_pause",
+          "label": "Resume later from the secured chamber",
+          "destinationSceneId": "scene_collapsed_chamber",
+          "conditionText": "Administrative resume link for testing only.",
+          "resultText": "On the next session, play can resume from the secured approach.",
+          "stateChanges": [],
+          "sortOrder": 1
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 8
+    },
+    {
+      "id": "scene_safe_pause_berm",
+      "name": "Safe Pause - Fallback Line Secured",
+      "type": "downtime",
+      "location": "Old Necropolis - Secondary Rubble Line",
+      "tags": ["safe-pause", "session-end"],
+      "summary": "A temporary safe endpoint after controlling the fallback position or withdrawing in good order.",
+      "gmDescription": "Utility node for session-end testing and resume behavior.",
+      "readAloud": "The last echoes of violence fade across broken stone. For now, the line holds, and the dark beyond keeps its secrets until you choose to press again.",
+      "atmosphere": "Hard-won breathing room.",
+      "entryConditions": [
+        "Reached by securing or withdrawing from the middle phase"
+      ],
+      "objectives": [
+        "End session cleanly"
+      ],
+      "complications": [],
+      "clues": [],
+      "interactiveElements": [],
+      "failureStates": [],
+      "successStates": [
+        "Session ends in a stable mid-adventure state"
+      ],
+      "rewards": [],
+      "factions": [],
+      "sceneNpcRefs": [],
+      "exitOptions": [
+        {
+          "id": "exit_resume_from_berm_pause",
+          "label": "Resume later from the secured fallback line",
+          "destinationSceneId": "scene_fallback_berm",
+          "conditionText": "Administrative resume link for testing only.",
+          "resultText": "On the next session, the party resumes from its consolidated position.",
+          "stateChanges": [],
+          "sortOrder": 1
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 9
+    },
+    {
+      "id": "scene_safe_pause_revelation",
+      "name": "Safe Pause - At the Threshold",
+      "type": "downtime",
+      "location": "Old Necropolis - Command Threshold",
+      "tags": ["safe-pause", "session-end", "cliffhanger"],
+      "summary": "A cliffhanger endpoint at the edge of a larger discovery.",
+      "gmDescription": "Utility node for end-of-session cliffhanger testing.",
+      "readAloud": "You have seen enough to know this was never just a patrol action. The dark ahead waits, patient and prepared, for the next descent.",
+      "atmosphere": "Suspended revelation, controlled cliffhanger.",
+      "entryConditions": [
+        "Reached by choosing to stop after the revelation"
+      ],
+      "objectives": [
+        "End session on a cliffhanger"
+      ],
+      "complications": [],
+      "clues": [],
+      "interactiveElements": [],
+      "failureStates": [],
+      "successStates": [
+        "Session ends on a strong forward hook"
+      ],
+      "rewards": [],
+      "factions": [],
+      "sceneNpcRefs": [],
+      "exitOptions": [
+        {
+          "id": "exit_resume_from_revelation_pause",
+          "label": "Resume later from the threshold",
+          "destinationSceneId": "scene_command_revelation",
+          "conditionText": "Administrative resume link for testing only.",
+          "resultText": "On the next session, the party resumes at the edge of the deeper mystery.",
+          "stateChanges": [],
+          "sortOrder": 1
+        }
+      ],
+      "canEndSessionHere": true,
+      "sortOrder": 10
+    },
+    {
+      "id": "scene_adventure_complete",
+      "name": "Adventure Complete",
+      "type": "downtime",
+      "location": "Old Necropolis - Withdrawal Route",
+      "tags": ["complete", "summary"],
+      "summary": "Administrative completion node marking the adventure as finished.",
+      "gmDescription": "Use this node to test adventure-complete handling, summary generation, and lore export.",
+      "readAloud": "You leave the dark behind with proof enough to change what comes next.",
+      "atmosphere": "Closure with consequences still unfolding.",
+      "entryConditions": [
+        "Reached when the adventure is concluded"
+      ],
+      "objectives": [
+        "Trigger final summary workflow"
+      ],
+      "complications": [],
+      "clues": [],
+      "interactiveElements": [],
+      "failureStates": [],
+      "successStates": [
+        "Adventure marked complete"
+      ],
+      "rewards": [
+        "Adventure summary material",
+        "Lore update material"
+      ],
+      "factions": [],
+      "sceneNpcRefs": [],
+      "exitOptions": [],
+      "canEndSessionHere": true,
+      "sortOrder": 11
+    }
+  ]
+}
