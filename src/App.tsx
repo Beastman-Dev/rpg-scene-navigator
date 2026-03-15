@@ -5,6 +5,7 @@ import { AdventureForm } from './components/AdventureForm';
 import { SceneList } from './pages/SceneList';
 import { SceneEditor } from './components/SceneEditor';
 import { getDatabaseManager, initializeDatabase } from './database/connection';
+import { AdventureRepository, SceneRepository } from './repositories';
 import type { Adventure, AdventureFormData, Scene } from './types';
 
 type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create';
@@ -16,6 +17,7 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [adventureListKey, setAdventureListKey] = useState(0); // Add key to force refresh
 
   // Initialize database on app mount
   useEffect(() => {
@@ -109,6 +111,8 @@ function App() {
       setIsSaving(true);
       setSaveError(null);
 
+      console.log('🎯 App - handleSaveAdventure called with:', data);
+
       const dbManager = getDatabaseManager();
       if (!dbManager.isReady()) {
         throw new Error('Database not initialized');
@@ -118,26 +122,30 @@ function App() {
       
       if (selectedAdventure) {
         // Update existing adventure
+        console.log('📝 App - Updating existing adventure:', selectedAdventure.id);
         const result = await adventureRepo.update(selectedAdventure.id, data);
         if (result.success) {
-          console.log('Adventure updated successfully');
+          console.log('✅ App - Adventure updated successfully');
           setCurrentView('list');
           setSelectedAdventure(undefined);
+          setAdventureListKey(prev => prev + 1); // Force refresh
         } else {
           throw new Error(result.error || 'Failed to update adventure');
         }
       } else {
         // Create new adventure
+        console.log('🆕 App - Creating new adventure');
         const result = await adventureRepo.create(data);
         if (result.success) {
-          console.log('Adventure created successfully');
+          console.log('✅ App - Adventure created successfully');
           setCurrentView('list');
+          setAdventureListKey(prev => prev + 1); // Force refresh
         } else {
           throw new Error(result.error || 'Failed to create adventure');
         }
       }
     } catch (error) {
-      console.error('Save adventure error:', error);
+      console.error('❌ App - Save adventure error:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save adventure');
     } finally {
       setIsSaving(false);
@@ -190,9 +198,11 @@ function App() {
       case 'list':
         return (
           <AdventureList
+            key={adventureListKey} // Add key to force re-render
             onCreateAdventure={handleCreateAdventure}
             onSelectAdventure={handleSelectAdventure}
             onEditAdventure={handleEditAdventure}
+            onDeleteAdventure={handleDeleteAdventure}
           />
         );
       

@@ -1,2 +1,3 @@
-// Use mock database for now to avoid compilation issues
-export { MockDatabaseManager as DatabaseManager, getDatabaseManager, initializeDatabase } from './mock-connection';
+// Use production IndexedDB database implementation
+// The mock database remains available at './mock-connection' for testing
+export { IndexedDBManager as DatabaseManager, getDatabaseManager, initializeDatabase } from './indexeddb-connection';

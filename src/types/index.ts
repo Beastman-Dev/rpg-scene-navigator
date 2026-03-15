@@ -31,7 +31,7 @@ export interface BaseEntity {
 export interface Adventure extends BaseEntity {
   title: string;
   description?: string;
-  startingSceneId: string;
+  startingSceneId?: string; // Made optional to allow creating adventures before scenes
   tags?: string[];
   status: AdventureStatus;
   author?: string;

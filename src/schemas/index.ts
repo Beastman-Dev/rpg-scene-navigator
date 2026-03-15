@@ -96,7 +96,7 @@ export const SceneSchema = BaseEntitySchema.extend({
 export const AdventureSchema = BaseEntitySchema.extend({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  startingSceneId: z.string().uuid(),
+  startingSceneId: z.string().uuid().optional(), // Made optional to allow creating adventures before scenes
   tags: z.array(z.string()).optional(),
   status: AdventureStatusSchema,
   author: z.string().optional()

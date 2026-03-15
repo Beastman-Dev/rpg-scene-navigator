@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS adventures (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    starting_scene_id TEXT NOT NULL,
+    starting_scene_id TEXT, -- Made optional to allow creating adventures before scenes
     tags TEXT, -- JSON array
     status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'archived', 'completed')),
     author TEXT,

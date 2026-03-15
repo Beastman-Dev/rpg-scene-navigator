@@ -9,23 +9,33 @@ interface AdventureListProps {
   onSelectAdventure: (adventure: Adventure) => void;
   onEditAdventure: (adventure: Adventure) => void;
   onDeleteAdventure: (adventure: Adventure) => void;
+  onAdventureSaved?: () => void; // Add callback for adventure save
 }
 
 export function AdventureList({ 
   onCreateAdventure, 
   onSelectAdventure, 
   onEditAdventure, 
-  onDeleteAdventure 
+  onDeleteAdventure,
+  onAdventureSaved 
 }: AdventureListProps) {
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<AdventureStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
 
   useEffect(() => {
     loadAdventures();
-  }, [filter, searchTerm]);
+  }, [filter, searchTerm, refreshKey]); // Add refreshKey to dependencies
+
+  // Call onAdventureSaved when refreshKey changes
+  useEffect(() => {
+    if (refreshKey > 0 && onAdventureSaved) {
+      onAdventureSaved();
+    }
+  }, [refreshKey, onAdventureSaved]);
 
   const loadAdventures = async () => {
     try {
@@ -88,6 +98,11 @@ export function AdventureList({
         console.error('Delete adventure error:', err);
       }
     }
+  };
+
+  // Add refresh method
+  const refreshAdventures = () => {
+    setRefreshKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -193,14 +208,14 @@ export function AdventureList({
 
               {adventure.tags && adventure.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {adventure.tags.map((tag) => (
+                  {Array.isArray(adventure.tags) ? adventure.tags.map((tag, index) => (
                     <span
-                      key={tag}
+                      key={`${tag}-${index}`}
                       className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
                     >
                       {tag}
                     </span>
-                  ))}
+                  )) : null}
                 </div>
               )}
 

@@ -1,5 +1,5 @@
 // @ts-nocheck - Skip TypeScript errors in repository files during migration to mock database
-import Database from 'better-sqlite3';
+import { BaseRepository } from './base';
 import type { Adventure, AdventureStatus } from '@/types';
 
 export class AdventureRepository extends BaseRepository<Adventure> {

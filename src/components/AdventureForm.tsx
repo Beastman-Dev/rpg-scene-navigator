@@ -29,7 +29,12 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
     defaultValues: adventure ? {
       title: adventure.title,
       description: adventure.description || '',
-      tags: adventure.tags || [],
+      // Handle tags as either array or JSON string
+      tags: Array.isArray(adventure.tags) 
+        ? adventure.tags 
+        : (typeof adventure.tags === 'string' && adventure.tags 
+            ? JSON.parse(adventure.tags) 
+            : []),
       status: adventure.status,
       author: adventure.author || ''
     } : {
@@ -48,16 +53,22 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
       setIsSaving(true);
       setSaveError(null);
       
+      console.log('🚀 AdventureForm - Submitting data:', data);
+      
       const validation = validateAdventureForm(data);
       if (!validation.success) {
+        console.error('❌ AdventureForm - Validation failed:', validation.error);
         setSaveError(validation.error);
         return;
       }
 
+      console.log('✅ AdventureForm - Validation passed, calling onSave...');
       await onSave(data);
+      console.log('✅ AdventureForm - Save completed successfully');
       reset();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save adventure';
+      console.error('❌ AdventureForm - Save failed:', error);
       setSaveError(errorMessage);
     } finally {
       setIsSaving(false);
@@ -113,7 +124,7 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form id="adventure-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
           {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
@@ -197,22 +208,30 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
             </label>
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
-                {(watch('tags') || []).map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-2 text-blue-600 hover:text-blue-800"
-                      disabled={isSaving}
+                {(() => {
+                  const tagsValue = watch('tags');
+                  const tagsArray = Array.isArray(tagsValue) 
+                    ? tagsValue 
+                    : (typeof tagsValue === 'string' && tagsValue 
+                        ? JSON.parse(tagsValue) 
+                        : []);
+                  return tagsArray.map((tag: string, index: number) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        disabled={isSaving}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ));
+                })()}
               </div>
               <button
                 type="button"

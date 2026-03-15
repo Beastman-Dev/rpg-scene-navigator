@@ -1,5 +1,4 @@
 // @ts-nocheck
-import Database from 'better-sqlite3';
 import { BaseRepository } from './base';
 import type { NPC, StatBlock } from '@/types';
 
