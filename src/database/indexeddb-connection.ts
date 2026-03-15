@@ -258,12 +258,36 @@ class IndexedDBStatement implements Statement {
     if (whereMatch) {
       const whereClause = whereMatch[1].trim();
       
-      // Handle simple equality conditions like "adventure_id = ?" or "s.adventure_id = ?"
+      // Handle combined conditions (equality + LIKE)
+      // First, handle equality conditions
       const eqMatch = whereClause.match(/(\w+)\.?(\w+)?\s*=\s*\?/);
       if (eqMatch) {
         const colName = eqMatch[2] || eqMatch[1]; // Handle both "table.col" and "col" formats
         const paramValue = params[0];
         data = data.filter((r: any) => r[colName] === paramValue);
+      }
+      
+      // Then, handle LIKE conditions for search functionality
+      const likeMatches = whereClause.match(/(\w+)\.?(\w+)?\s+LIKE\s+\?/gi);
+      if (likeMatches && params.length > 0) {
+        // Determine the starting parameter index for LIKE conditions
+        const likeStartIndex = eqMatch ? 1 : 0;
+        
+        // For search queries, filter by multiple LIKE conditions
+        data = data.filter((r: any) => {
+          return likeMatches.some((likeMatch, index) => {
+            const match = likeMatch.match(/(\w+)\.?(\w+)?\s+LIKE\s+\?/i);
+            if (match) {
+              const colName = match[2] || match[1];
+              const paramIndex = likeStartIndex + index;
+              const paramValue = params[paramIndex] || '';
+              const searchTerm = paramValue.replace(/%/g, '').toLowerCase();
+              const fieldValue = String(r[colName] || '').toLowerCase();
+              return fieldValue.includes(searchTerm);
+            }
+            return false;
+          });
+        });
       }
     }
     

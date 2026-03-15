@@ -24,19 +24,22 @@ export class NPCRepository extends BaseRepository<NPC> {
   }
 
   protected entityToRow(entity: Partial<NPC>): any {
-    return {
-      id: entity.id,
-      name: entity.name,
-      role: entity.role,
-      description: entity.description,
-      faction: entity.faction,
-      stat_block: entity.statBlock,
-      notes: entity.notes,
-      tags: entity.tags,
-      adventure_id: entity.adventureId,
-      created_at: entity.createdAt,
-      updated_at: entity.updatedAt
-    };
+    const row: any = {};
+    
+    // Only include fields that are actually present in the entity
+    if (entity.id !== undefined) row.id = entity.id;
+    if (entity.name !== undefined) row.name = entity.name;
+    if (entity.role !== undefined) row.role = entity.role;
+    if (entity.description !== undefined) row.description = entity.description;
+    if (entity.faction !== undefined) row.faction = entity.faction;
+    if (entity.statBlock !== undefined) row.stat_block = entity.statBlock;
+    if (entity.notes !== undefined) row.notes = entity.notes;
+    if (entity.tags !== undefined) row.tags = entity.tags;
+    if (entity.adventureId !== undefined) row.adventure_id = entity.adventureId;
+    if (entity.createdAt !== undefined) row.created_at = entity.createdAt;
+    if (entity.updatedAt !== undefined) row.updated_at = entity.updatedAt;
+    
+    return row;
   }
 
   /**

@@ -50,9 +50,13 @@ export interface NPC extends BaseEntity {
 }
 
 export interface StatBlock {
-  system: string;
-  summary: string;
-  [key: string]: any; // Allow system-specific fields
+  abilityScores: { [key: string]: number };
+  armorClass: number;
+  hitPoints: number;
+  challengeRating: number;
+  skills: string[];
+  savingThrows: { [key: string]: number };
+  attacks: string[];
 }
 
 // Scene types

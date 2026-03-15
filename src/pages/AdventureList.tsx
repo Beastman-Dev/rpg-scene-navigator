@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, MapPin, Users } from 'lucide-react';
 import type { Adventure, AdventureStatus } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
 
@@ -247,6 +247,16 @@ export function AdventureList({
                 >
                   <MapPin className="h-4 w-4" />
                   Scenes
+                </button>
+                <button
+                  onClick={() => {
+                    if (setSelectedAdventure) setSelectedAdventure(adventure);
+                    if (setCurrentView) setCurrentView('npcs');
+                  }}
+                  className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  NPCs
                 </button>
                 <button
                   onClick={() => handleDelete(adventure)}

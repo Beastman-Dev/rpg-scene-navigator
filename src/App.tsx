@@ -4,11 +4,13 @@ import { AdventureList } from './pages/AdventureList';
 import { AdventureForm } from './components/AdventureForm';
 import { SceneList } from './pages/SceneList';
 import { SceneEditor } from './components/SceneEditor';
+import { NPCList } from './pages/NPCList';
+import { NPCEditor } from './components/NPCEditor';
 import { getDatabaseManager, initializeDatabase } from './database/connection';
-import { AdventureRepository, SceneRepository } from './repositories';
-import type { Adventure, AdventureFormData, Scene } from './types';
+import { AdventureRepository, SceneRepository, NPCRepository } from './repositories';
+import type { Adventure, AdventureFormData, Scene, NPC, NPCFormData } from './types';
 
-type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create';
+type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create' | 'npcs' | 'npc-edit' | 'npc-create';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('list');
@@ -19,6 +21,7 @@ function App() {
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [adventureListKey, setAdventureListKey] = useState(0); // Add key to force refresh
+  const [selectedNPC, setSelectedNPC] = useState<NPC | undefined>();
 
   // Initialize database on app mount
   useEffect(() => {
@@ -210,6 +213,81 @@ function App() {
     }
   };
 
+  const handleSaveNPC = async (data: NPCFormData) => {
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      const dbManager = getDatabaseManager();
+      if (!dbManager.isReady()) {
+        throw new Error('Database not initialized');
+      }
+
+      const npcRepo = new NPCRepository(dbManager.getConnection());
+      
+      if (selectedNPC) {
+        // Update existing NPC
+        console.log('📝 App - Updating existing NPC:', selectedNPC.id);
+        const result = await npcRepo.update(selectedNPC.id, data);
+        if (result.success) {
+          console.log('✅ App - NPC updated successfully');
+          setCurrentView('npcs');
+          setSelectedNPC(undefined);
+        } else {
+          throw new Error(result.error || 'Failed to update NPC');
+        }
+      } else {
+        // Create new NPC
+        console.log('🆕 App - Creating new NPC');
+        const result = await npcRepo.create(data);
+        if (result.success) {
+          console.log('✅ App - NPC created successfully');
+          setCurrentView('npcs');
+        } else {
+          throw new Error(result.error || 'Failed to create NPC');
+        }
+      }
+    } catch (error) {
+      console.error('Save NPC error:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save NPC');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSelectNPC = (npc: NPC) => {
+    setSelectedNPC(npc);
+    // Could add NPC detail view here in the future
+  };
+
+  const handleEditNPC = (npc: NPC) => {
+    setSelectedNPC(npc);
+    setCurrentView('npc-edit');
+  };
+
+  const handleDeleteNPC = async (npc: NPC) => {
+    try {
+      const dbManager = getDatabaseManager();
+      if (!dbManager.isReady()) {
+        throw new Error('Database not initialized');
+      }
+
+      const npcRepo = new NPCRepository(dbManager.getConnection());
+      const result = await npcRepo.delete(npc.id);
+      
+      if (result.success) {
+        console.log('NPC deleted successfully');
+        // Force refresh of adventure list to update NPC count
+        setAdventureListKey(prev => prev + 1);
+      } else {
+        throw new Error(result.error || 'Failed to delete NPC');
+      }
+    } catch (err) {
+      console.error('Failed to delete NPC:', err);
+      setSaveError('Failed to delete NPC');
+    }
+  };
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'list':
@@ -273,6 +351,39 @@ function App() {
             adventureId={selectedAdventure?.id || ''}
             onSave={handleSaveScene}
             onCancel={handleBackToList}
+          />
+        );
+
+      case 'npcs':
+        return (
+          <NPCList
+            adventureId={selectedAdventure?.id || ''}
+            onSelectNPC={handleSelectNPC}
+            onEditNPC={handleEditNPC}
+            onDeleteNPC={handleDeleteNPC}
+            onCreateNPC={() => setCurrentView('npc-create')}
+            onBack={handleBackToList}
+          />
+        );
+      
+      case 'npc-edit':
+        return (
+          <NPCEditor
+            npc={selectedNPC}
+            adventureId={selectedAdventure?.id || ''}
+            onSave={handleSaveNPC}
+            onCancel={handleBackToList}
+            isLoading={isSaving}
+          />
+        );
+      
+      case 'npc-create':
+        return (
+          <NPCEditor
+            adventureId={selectedAdventure?.id || ''}
+            onSave={handleSaveNPC}
+            onCancel={handleBackToList}
+            isLoading={isSaving}
           />
         );
       
