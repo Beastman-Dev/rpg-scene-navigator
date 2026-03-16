@@ -4,6 +4,7 @@ import { AdventureList } from './pages/AdventureList';
 import { AdventureForm } from './components/AdventureForm';
 import { SceneList } from './pages/SceneList';
 import { SceneEditor } from './components/SceneEditor';
+import { SceneDisplay } from './components/SceneDisplay';
 import { NPCList } from './pages/NPCList';
 import { NPCEditor } from './components/NPCEditor';
 import { getDatabaseManager, initializeDatabase } from './database/connection';
@@ -54,6 +55,35 @@ function App() {
 
   const handleSelectAdventure = (adventure: Adventure) => {
     setSelectedAdventure(adventure);
+  };
+
+  const handlePlayAdventure = async (adventure: Adventure) => {
+    setSelectedAdventure(adventure);
+    
+    if (!adventure.startingSceneId) {
+      // No starting scene set - show message but still go to play view
+      setSelectedScene(null);
+      setCurrentView('play');
+      return;
+    }
+    
+    // Load the starting scene before switching to play view
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      try {
+        const sceneRepo = new SceneRepository(dbManager.getConnection());
+        const result = await sceneRepo.findById(adventure.startingSceneId);
+        if (result.success && result.data) {
+          setSelectedScene(result.data);
+        } else {
+          console.error('Starting scene not found:', adventure.startingSceneId);
+          setSelectedScene(null);
+        }
+      } catch (error) {
+        console.error('Failed to load starting scene:', error);
+        setSelectedScene(null);
+      }
+    }
     setCurrentView('play');
   };
 
@@ -288,6 +318,23 @@ function App() {
     }
   };
 
+  const handleSceneChange = (scene: Scene) => {
+    setSelectedScene(scene);
+  };
+
+  const handleExitToScene = (sceneId: string) => {
+    // Load the scene and update selected scene
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      const sceneRepo = new SceneRepository(dbManager.getConnection());
+      sceneRepo.findById(sceneId).then(result => {
+        if (result.success && result.data) {
+          setSelectedScene(result.data);
+        }
+      });
+    }
+  };
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'list':
@@ -300,6 +347,7 @@ function App() {
             onDeleteAdventure={handleDeleteAdventure}
             setCurrentView={setCurrentView}
             setSelectedAdventure={setSelectedAdventure}
+            onSetStartingScene={handlePlayAdventure}
           />
         );
       
@@ -388,7 +436,14 @@ function App() {
         );
       
       case 'play':
-        return (
+        return selectedScene ? (
+          <SceneDisplay
+            scene={selectedScene}
+            adventureId={selectedAdventure?.id || ''}
+            onSceneChange={handleSceneChange}
+            onExitToScene={handleExitToScene}
+          />
+        ) : (
           <div className="max-w-6xl mx-auto p-6">
             <div className="mb-6">
               <button
@@ -401,7 +456,7 @@ function App() {
             <h1 className="text-3xl font-bold mb-6">Play Mode</h1>
             <div className="bg-white border border-gray-200 rounded-lg p-6">
               <p className="text-gray-600">
-                Play mode will be implemented in Phase 3.
+                Select an adventure and click "Play" to begin.
               </p>
               {selectedAdventure && (
                 <div className="mt-4 p-4 bg-gray-50 rounded">

@@ -12,6 +12,7 @@ interface AdventureListProps {
   onAdventureSaved?: () => void; // Add callback for adventure save
   setCurrentView?: (view: string) => void; // Add setCurrentView prop
   setSelectedAdventure?: (adventure: Adventure) => void; // Add setSelectedAdventure prop
+  onSetStartingScene?: (adventure: Adventure) => void; // Add onSetStartingScene prop
 }
 
 export function AdventureList({ 
@@ -21,7 +22,8 @@ export function AdventureList({
   onDeleteAdventure,
   onAdventureSaved,
   setCurrentView,
-  setSelectedAdventure
+  setSelectedAdventure,
+  onSetStartingScene
 }: AdventureListProps) {
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,7 +227,9 @@ export function AdventureList({
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => onSelectAdventure(adventure)}
+                  onClick={() => {
+                    if (onSetStartingScene) onSetStartingScene(adventure);
+                  }}
                   className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
                 >
                   <Play className="h-4 w-4" />
