@@ -225,6 +225,7 @@ export interface AdventureFormData {
   tags: string[];
   status: AdventureStatus;
   author: string;
+  startingSceneId?: string;
 }
 
 export interface SceneFormData {

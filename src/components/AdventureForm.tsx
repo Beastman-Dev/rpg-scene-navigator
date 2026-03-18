@@ -2,9 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, X, Save } from 'lucide-react';
-import type { Adventure, AdventureFormData, AdventureStatus } from '@/types';
+import { Plus, X, Save, MapPin } from 'lucide-react';
+import type { Adventure, AdventureFormData, AdventureStatus, Scene } from '@/types';
 import { AdventureFormSchema, validateAdventureForm } from '@/schemas';
+import { getDatabaseManager } from '@/database/connection';
+import { SceneRepository } from '@/repositories/scene';
 
 interface AdventureFormProps {
   adventure?: Adventure;
@@ -16,6 +18,8 @@ interface AdventureFormProps {
 export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }: AdventureFormProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [availableScenes, setAvailableScenes] = useState<Scene[]>([]);
+  const [scenesLoading, setScenesLoading] = useState(false);
 
   const {
     register,
@@ -36,13 +40,15 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
             ? JSON.parse(adventure.tags) 
             : []),
       status: adventure.status,
-      author: adventure.author || ''
+      author: adventure.author || '',
+      startingSceneId: adventure.startingSceneId || ''
     } : {
       title: '',
       description: '',
       tags: [],
       status: 'draft',
-      author: ''
+      author: '',
+      startingSceneId: ''
     }
   });
 
@@ -57,8 +63,9 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
       
       const validation = validateAdventureForm(data);
       if (!validation.success) {
+        const errorMessage = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
         console.error('❌ AdventureForm - Validation failed:', validation.error);
-        setSaveError(validation.error);
+        setSaveError(errorMessage);
         return;
       }
 
@@ -86,6 +93,61 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
   const removeTag = (tagToRemove: string) => {
     const currentTags = watch('tags') || [];
     setValue('tags', currentTags.filter(tag => tag !== tagToRemove));
+  };
+
+  // Load available scenes and reset form when editing an existing adventure
+  useEffect(() => {
+    console.log('📝 AdventureForm - useEffect triggered', {
+      hasAdventure: !!adventure,
+      adventureId: adventure?.id,
+      startingSceneId: adventure?.startingSceneId,
+      startingSceneIdType: typeof adventure?.startingSceneId
+    });
+    
+    if (adventure) {
+      const formData = {
+        title: adventure.title,
+        description: adventure.description || '',
+        tags: Array.isArray(adventure.tags) 
+          ? adventure.tags 
+          : (typeof adventure.tags === 'string' && adventure.tags 
+              ? JSON.parse(adventure.tags) 
+              : []),
+        status: adventure.status,
+        author: adventure.author || '',
+        startingSceneId: adventure.startingSceneId || ''
+      };
+      
+      console.log('📝 AdventureForm - Resetting form with data:', formData);
+      reset(formData);
+      
+      // Load scenes after resetting form
+      if (adventure.id) {
+        loadScenesForAdventure(adventure.id).then(() => {
+          // Reset form again after scenes are loaded to ensure dropdown updates
+          console.log('📝 AdventureForm - Resetting form after scenes loaded');
+          reset(formData);
+        });
+      }
+    }
+  }, [adventure, reset]);
+
+  const loadScenesForAdventure = async (adventureId: string) => {
+    setScenesLoading(true);
+    try {
+      const dbManager = getDatabaseManager();
+      if (dbManager.isReady()) {
+        const sceneRepo = new SceneRepository(dbManager.getConnection());
+        const result = await sceneRepo.findByAdventureId(adventureId);
+        if (result.success && result.data) {
+          setAvailableScenes(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load scenes:', error);
+    } finally {
+      setScenesLoading(false);
+    }
   };
 
   const statusOptions: { value: AdventureStatus; label: string }[] = [
@@ -200,6 +262,41 @@ export function AdventureForm({ adventure, onSave, onCancel, isLoading = false }
               <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
             )}
           </div>
+
+          {/* Starting Scene - only show when editing and scenes exist */}
+          {adventure?.id && (
+            <div>
+              <label htmlFor="startingSceneId" className="block text-sm font-medium text-gray-700 mb-2">
+                <MapPin className="inline h-4 w-4 mr-1" />
+                Starting Scene
+              </label>
+              <select
+                id="startingSceneId"
+                {...register('startingSceneId')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isSaving || scenesLoading || availableScenes.length === 0}
+              >
+                <option value="">
+                  {scenesLoading 
+                    ? 'Loading scenes...' 
+                    : availableScenes.length === 0 
+                      ? 'No scenes available - create scenes first' 
+                      : 'Select starting scene...'}
+                </option>
+                {availableScenes.map(scene => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.name} ({scene.type})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-sm text-gray-500">
+                This scene will be loaded when you click "Play" on this adventure.
+              </p>
+              {errors.startingSceneId && (
+                <p className="mt-1 text-sm text-red-600">{errors.startingSceneId.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Tags */}
           <div>

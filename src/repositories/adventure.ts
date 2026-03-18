@@ -12,12 +12,14 @@ export class AdventureRepository extends BaseRepository<Adventure> {
       id: row.id,
       title: row.title,
       description: row.description,
-      startingSceneId: row.starting_scene_id,
+      // Handle both snake_case (from raw DB) and camelCase (from IndexedDB conversion)
+      startingSceneId: row.startingSceneId || row.starting_scene_id || undefined,
       tags: row.tags,
       status: row.status as AdventureStatus,
       author: row.author,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      // Handle both snake_case and camelCase for timestamps
+      createdAt: row.createdAt || row.created_at,
+      updatedAt: row.updatedAt || row.updated_at
     };
   }
 
@@ -28,7 +30,10 @@ export class AdventureRepository extends BaseRepository<Adventure> {
     if (entity.id !== undefined) row.id = entity.id;
     if (entity.title !== undefined) row.title = entity.title;
     if (entity.description !== undefined) row.description = entity.description;
-    if (entity.startingSceneId !== undefined) row.starting_scene_id = entity.startingSceneId;
+    if (entity.startingSceneId !== undefined) {
+      // Convert empty string to null for database
+      row.starting_scene_id = entity.startingSceneId === '' ? null : entity.startingSceneId;
+    }
     if (entity.tags !== undefined) row.tags = entity.tags;
     if (entity.status !== undefined) row.status = entity.status;
     if (entity.author !== undefined) row.author = entity.author;

@@ -240,8 +240,44 @@ class IndexedDBStatement implements Statement {
     });
     
     // Find by ID (first param)
-    const result = data.find((r: any) => r.id === params[0]) || null;
-    console.log(`🔍 handleSelectOne: Result for ID "${params[0]}"`, result ? 'FOUND' : 'NOT FOUND');
+    let result = data.find((r: any) => r.id === params[0]) || null;
+    
+    // Convert snake_case to camelCase for adventures and parse JSON fields
+    if (tableName === 'adventures' && result) {
+      console.log(`🔄 handleSelectOne: Converting adventure fields`, {
+        starting_scene_id_before: result.starting_scene_id,
+        starting_scene_id_type: typeof result.starting_scene_id
+      });
+      
+      result = {
+        id: result.id,
+        title: result.title,
+        description: result.description,
+        startingSceneId: result.starting_scene_id,
+        tags: result.tags,
+        status: result.status,
+        author: result.author,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at
+      };
+      
+      console.log(`🔄 handleSelectOne: After conversion`, {
+        startingSceneId_after: result.startingSceneId,
+        startingSceneId_type: typeof result.startingSceneId
+      });
+      
+      // Parse JSON fields
+      if (result.tags && typeof result.tags === 'string') {
+        try {
+          result.tags = JSON.parse(result.tags);
+        } catch (e) {
+          console.warn('Failed to parse tags JSON:', result.tags);
+          result.tags = [];
+        }
+      }
+    }
+    
+    console.log(`🔍 handleSelectOne: Result for ID "${params[0]}"`, result ? 'FOUND' : 'NOT FOUND', result);
     return result;
   }
 
@@ -289,6 +325,35 @@ class IndexedDBStatement implements Statement {
           });
         });
       }
+    }
+    
+    // Convert snake_case to camelCase for adventures and parse JSON fields
+    if (tableName === 'adventures') {
+      data = data.map((record: any) => {
+        const parsed = {
+          id: record.id,
+          title: record.title,
+          description: record.description,
+          startingSceneId: record.starting_scene_id,
+          tags: record.tags,
+          status: record.status,
+          author: record.author,
+          createdAt: record.created_at,
+          updatedAt: record.updated_at
+        };
+        
+        // Parse JSON fields
+        if (parsed.tags && typeof parsed.tags === 'string') {
+          try {
+            parsed.tags = JSON.parse(parsed.tags);
+          } catch (e) {
+            console.warn('Failed to parse tags JSON:', parsed.tags);
+            parsed.tags = [];
+          }
+        }
+        
+        return parsed;
+      });
     }
     
     return data;

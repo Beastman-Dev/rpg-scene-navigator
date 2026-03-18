@@ -184,7 +184,8 @@ export const AdventureFormSchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()),
   status: AdventureStatusSchema,
-  author: z.string().optional()
+  author: z.string().optional(),
+  startingSceneId: z.string().uuid().optional().or(z.literal(''))
 });
 
 export const SceneFormSchema = z.object({

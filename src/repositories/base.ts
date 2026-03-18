@@ -57,12 +57,16 @@ export abstract class BaseRepository<T extends { id: string }> {
     const parsed = { ...row };
     for (const field of jsonFields) {
       if (field in parsed && parsed[field] !== null && parsed[field] !== undefined) {
-        try {
-          parsed[field] = JSON.parse(parsed[field]);
-        } catch (error) {
-          console.warn(`Failed to parse JSON field ${field}:`, error);
-          parsed[field] = null;
+        // Only parse if it's a string (from database)
+        if (typeof parsed[field] === 'string') {
+          try {
+            parsed[field] = JSON.parse(parsed[field]);
+          } catch (error) {
+            console.warn(`Failed to parse JSON field ${field}:`, error);
+            parsed[field] = null;
+          }
         }
+        // If it's already an object/array, leave it as-is
       }
     }
     return parsed;
@@ -225,20 +229,30 @@ export abstract class BaseRepository<T extends { id: string }> {
    */
   async update(id: string, data: Partial<Omit<T, 'id' | 'createdAt'>>): Promise<UpdateResult<T>> {
     try {
+      console.log('🔄 BaseRepository.update - Starting update for ID:', id);
+      console.log('📥 BaseRepository.update - Input data:', data);
+      
       // First check if entity exists
       const existing = await this.findById(id);
       if (!existing.success) {
         return { success: false, error: 'Entity not found' };
       }
+      console.log('✅ BaseRepository.update - Existing entity found:', existing.data);
 
       const updateData = {
         ...data,
         updatedAt: new Date().toISOString()
       };
+      console.log('📝 BaseRepository.update - Update data with timestamp:', updateData);
 
       let row = this.entityToRow(updateData);
+      console.log('🔄 BaseRepository.update - After entityToRow:', row);
+      
       row = this.processJsonFields(row, this.getTableName());
+      console.log('📦 BaseRepository.update - After processJsonFields:', row);
+      
       row = this.processBooleanFields(row, this.getTableName());
+      console.log('✅ BaseRepository.update - After processBooleanFields:', row);
 
       if (Object.keys(row).length === 0) {
         return { success: false, error: 'No fields to update' };
@@ -249,10 +263,19 @@ export abstract class BaseRepository<T extends { id: string }> {
       values.push(id); // For WHERE clause
 
       const sql = `UPDATE ${this.getTableName()} SET ${setClause} WHERE id = ?`;
-      this.db.prepare(sql).run(...values);
+      console.log('💾 BaseRepository.update - SQL:', sql);
+      console.log('📋 BaseRepository.update - Values:', values);
+      
+      const result = this.db.prepare(sql).run(...values);
+      console.log('✅ BaseRepository.update - Update result:', result);
+      
+      // Auto-save to localStorage after update
+      getDatabaseManager().autoSave();
 
       // Return updated entity
-      return await this.findById(id);
+      const updated = await this.findById(id);
+      console.log('🎯 BaseRepository.update - Final updated entity:', updated.data);
+      return updated;
     } catch (error) {
       console.error('Update failed:', error);
       return { 

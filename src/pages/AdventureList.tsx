@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Play, MapPin, Users } from 'lucide-react';
 import type { Adventure, AdventureStatus } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
+import { AdventureRepository } from '@/repositories/adventure';
 
 interface AdventureListProps {
   onCreateAdventure: () => void;
@@ -55,19 +56,15 @@ export function AdventureList({
         return;
       }
       
-      // Use mock database directly
-      const dbConnection = dbManager.getConnection();
-      let result;
-      
-      if (filter !== 'all') {
-        // For now, return all adventures for any filter
-        result = { success: true, data: dbConnection.prepare('SELECT * FROM adventures').all() };
-      } else if (searchTerm) {
-        // For now, return all adventures for any search
-        result = { success: true, data: dbConnection.prepare('SELECT * FROM adventures').all() };
-      } else {
-        result = { success: true, data: dbConnection.prepare('SELECT * FROM adventures').all() };
-      }
+      // Use AdventureRepository to properly map database rows to entities
+      const adventureRepo = new AdventureRepository(dbManager.getConnection());
+      const result = await adventureRepo.findAll({ orderBy: 'updated_at', orderDirection: 'DESC' });
+
+      console.log('📋 AdventureList - Loaded adventures:', result.data?.map(a => ({
+        id: a.id,
+        title: a.title,
+        startingSceneId: a.startingSceneId
+      })));
 
       if (result.success && result.data) {
         setAdventures(result.data);

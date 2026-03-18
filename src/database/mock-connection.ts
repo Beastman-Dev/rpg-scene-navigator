@@ -239,20 +239,23 @@ export class MockDatabaseConnection implements DatabaseConnection {
     for (let i = 0; i < tableData.length; i++) {
       const record = tableData[i];
       if (record.id === recordId) {
+        console.log(`🔍 Mock UPDATE - Found record to update:`, record);
         setColumns.forEach((setClause, index) => {
           const colMatch = setClause.match(/(\w+) =/);
           if (colMatch) {
-            const col = colMatch[1];
-            const camelCaseCol = col.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-            record[camelCaseCol] = params[index];
+            const col = colMatch[1]; // Keep snake_case as it appears in SQL
+            const oldValue = record[col];
+            record[col] = params[index]; // Store with snake_case key
+            console.log(`✏️ Mock UPDATE - Updated ${col}: "${oldValue}" -> "${params[index]}"`);
           }
         });
+        console.log(`✅ Mock UPDATE - Record after update:`, record);
         changes++;
         break;
       }
     }
     
-    console.log(`Updated ${changes} records in ${tableName} with ID ${recordId}`);
+    console.log(`✅ Mock UPDATE - Updated ${changes} records in ${tableName} with ID ${recordId}`);
     
     return { changes, lastInsertROWID: 0 };
   }

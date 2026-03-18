@@ -119,6 +119,30 @@ export class SceneRepository extends BaseRepository<Scene> {
   }
 
   /**
+   * Find scenes by adventure ID
+   */
+  async findByAdventureId(adventureId: string): Promise<{ success: boolean; data?: Scene[]; error?: string }> {
+    try {
+      const sql = `SELECT * FROM ${this.getTableName()} WHERE adventure_id = ? ORDER BY sort_order, name`;
+      const rows = this.db.prepare(sql).all(adventureId);
+      
+      const entities = rows.map((row: any) => {
+        let processedRow = this.parseJsonFields(row, this.getTableName());
+        processedRow = this.parseBooleanFields(processedRow, this.getTableName());
+        return this.rowToEntity(processedRow);
+      });
+
+      return { success: true, data: entities };
+    } catch (error) {
+      console.error('FindByAdventureId failed:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
    * Add NPC to scene
    */
   async addNpc(sceneId: string, npcRef: Omit<SceneNpcRef, 'npcId'> & { npcId: string }): Promise<{ success: boolean; error?: string }> {
