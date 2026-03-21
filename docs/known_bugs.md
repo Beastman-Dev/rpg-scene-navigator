@@ -64,6 +64,14 @@ await loadScenes(); // Reload to reflect changes
 
 ## Resolved Bugs ✅
 
+### Starting Scene Persistence Bug
+**Status:** ✅ Resolved
+**Description:** Starting scene selection was not persisting due to field conversion issues
+**Fix:** Fixed snake_case/camelCase conversion in repositories and form timing
+**Files:** `adventure.ts`, `indexeddb-connection.ts`, `AdventureForm.tsx`
+**Impact:** Starting scenes now save and load correctly
+**Test Coverage:** Added comprehensive repository tests to prevent regression
+
 ### Scenes from Other Adventures Showing
 **Status:** ✅ Resolved
 **Fix:** Added WHERE clause filtering in `handleSelectAll()`
@@ -126,5 +134,5 @@ When fixing bugs, verify these still work:
 
 ---
 
-*Last Updated: March 15, 2026*
-*Next Phase: NPC Management*
+*Last Updated: March 20, 2026*
+*Next Phase: Session Management & Completion Features*

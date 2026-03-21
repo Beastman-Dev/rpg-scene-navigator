@@ -9,6 +9,7 @@ import type {
   FindAllResult 
 } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
+import { log } from '@/utils/logger';
 
 /**
  * Base repository class with common database operations
@@ -119,24 +120,23 @@ export abstract class BaseRepository<T extends { id: string }> {
         updatedAt: now
       } as T;
 
-      console.log('🏗️ BaseRepository - Creating entity:', entity);
+      log.repository('create', this.getTableName(), { entity });
 
       let row = this.entityToRow(entity);
-      console.log('🔄 BaseRepository - Entity to row:', row);
+      log.repository('entityToRow', this.getTableName(), { row });
       
       row = this.processJsonFields(row, this.getTableName());
-      console.log('📦 BaseRepository - After JSON processing:', row);
+      log.repository('processJsonFields', this.getTableName(), { row });
       
       row = this.processBooleanFields(row, this.getTableName());
-      console.log('✅ BaseRepository - After boolean processing:', row);
+      log.repository('processBooleanFields', this.getTableName(), { row });
 
       const columns = Object.keys(row).join(', ');
       const placeholders = Object.keys(row).map(() => '?').join(', ');
       const values = Object.values(row);
 
       const sql = `INSERT INTO ${this.getTableName()} (${columns}) VALUES (${placeholders})`;
-      console.log('💾 BaseRepository - SQL:', sql);
-      console.log('📋 BaseRepository - Values:', values);
+      log.database('insert', this.getTableName(), { sql, values });
       
       this.db.prepare(sql).run(...values);
       
@@ -145,7 +145,7 @@ export abstract class BaseRepository<T extends { id: string }> {
 
       return { success: true, data: entity };
     } catch (error) {
-      console.error('❌ Create failed:', error);
+      log.error('repository', `Create failed for ${this.getTableName()}`, error instanceof Error ? error : new Error(String(error)));
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -171,7 +171,7 @@ export abstract class BaseRepository<T extends { id: string }> {
       const entity = this.rowToEntity(processedRow);
       return { success: true, data: entity };
     } catch (error) {
-      console.error('FindById failed:', error);
+      log.error('repository', `FindById failed for ${this.getTableName()}`, error instanceof Error ? error : new Error(String(error)), { id });
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -216,7 +216,7 @@ export abstract class BaseRepository<T extends { id: string }> {
 
       return { success: true, data: entities };
     } catch (error) {
-      console.error('FindAll failed:', error);
+      log.error('repository', `FindAll failed for ${this.getTableName()}`, error instanceof Error ? error : new Error(String(error)), { options });
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 

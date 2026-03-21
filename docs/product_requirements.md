@@ -253,9 +253,9 @@ Scenes **reference NPCs** instead of duplicating them.
 
 ---
 
-# 4.5 Play Mode Features
+# 4.5 Play Mode Features 
 
-During play the GM should be able to:
+During play the GM can:
 
 * View scene information
 * Expand or collapse sections
@@ -265,6 +265,16 @@ During play the GM should be able to:
 * Track NPC states
 * Select exit options
 * Move to next scene
+* Navigate back/forward through scene history
+* Jump to any scene via scene list panel
+* See navigation breadcrumb trail
+* Track enhanced session state (progress, remaining scenes)
+
+## Enhanced Navigation Features (Beyond Requirements)
+* **Navigation History**: Back/forward buttons with proper state management
+* **Scene List Panel**: Collapsible panel showing all scenes for quick jumping
+* **Breadcrumb Navigation**: Visual path showing navigation through scenes
+* **Enhanced Session State**: Navigation position, scenes remaining, progress metrics
 
 Autosave should occur when:
 
@@ -695,14 +705,19 @@ Core foundation:
 
 ---
 
-## Phase 2
-
+## Phase 2 
 Gameplay support:
 
-* Play mode
-* Notes tracking
-* NPC references
-* Exit navigation
+* Play mode with enhanced navigation
+* Notes tracking with GM/player separation
+* NPC references with stat blocks
+* Exit navigation with scene-to-scene transitions
+* Navigation history with back/forward buttons
+* Scene list panel for quick jumping
+* Breadcrumb navigation trail
+* Enhanced session state tracking
+* Comprehensive test suite
+* Starting scene persistence bug fix
 
 ---
 

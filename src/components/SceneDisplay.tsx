@@ -1,13 +1,13 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Save, FileText, Users, MapPin, Eye, EyeOff, Shield, Sword, Heart } from 'lucide-react';
-import type { Scene, SceneNpcRef, ExitOption } from '@/types';
+import type { Scene, SceneNpcRef, ExitOption, Session, SceneRunState } from '@/types';
 
 interface SceneDisplayProps {
   scene: Scene;
   adventureId: string;
   onSceneChange?: (scene: Scene) => void;
-  onExitToScene?: (sceneId: string) => void;
+  onExitToScene?: (sceneId: string, exitOptionId?: string) => void;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
   onJumpToScene?: (sceneId: string) => void;
@@ -16,6 +16,9 @@ interface SceneDisplayProps {
   canNavigateForward?: boolean;
   navigationHistory?: Scene[];
   historyIndex?: number;
+  currentSession?: Session;
+  sceneRunState?: SceneRunState;
+  onEndSession?: (isAdventureComplete?: boolean) => void;
   className?: string;
 }
 
@@ -32,6 +35,9 @@ export function SceneDisplay({
   canNavigateForward = false,
   navigationHistory = [],
   historyIndex = -1,
+  currentSession,
+  sceneRunState,
+  onEndSession,
   className = '' 
 }: SceneDisplayProps) {
   const [gmNotes, setGmNotes] = useState('');
@@ -40,6 +46,16 @@ export function SceneDisplay({
   const [showSessionNotes, setShowSessionNotes] = useState(false);
   const [visitedScenes, setVisitedScenes] = useState<Set<string>>(new Set());
   const [showSceneList, setShowSceneList] = useState(false);
+  const [playerDecisions, setPlayerDecisions] = useState<string[]>([]);
+  const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+
+  // Load session state when scene or session changes
+  useEffect(() => {
+    if (sceneRunState) {
+      setSessionNotes(sceneRunState.notes || '');
+      setPlayerDecisions(sceneRunState.playerDecisions || []);
+    }
+  }, [sceneRunState]);
 
   // Load saved notes from localStorage
   useEffect(() => {
@@ -60,7 +76,7 @@ export function SceneDisplay({
     if (exit.destinationSceneId && onExitToScene) {
       // Mark current scene as visited
       setVisitedScenes(prev => new Set([...prev, scene.id]));
-      onExitToScene(exit.destinationSceneId);
+      onExitToScene(exit.destinationSceneId, exit.id);
     }
   };
 
@@ -430,10 +446,26 @@ export function SceneDisplay({
 
         {/* Session State */}
         <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-            <Shield className="h-5 w-5 mr-2" />
-            Session State
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Shield className="h-5 w-5 mr-2" />
+              Session State
+            </h3>
+            {currentSession && (
+              <div className="flex gap-2">
+                <div className="text-sm text-gray-600">
+                  Session #{currentSession.sessionNumber}
+                </div>
+                <button
+                  onClick={() => setShowEndSessionDialog(true)}
+                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                >
+                  End Session
+                </button>
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
             <div>
               <strong>Current Scene:</strong> {scene.name}
@@ -454,6 +486,19 @@ export function SceneDisplay({
             <div>
               <strong>Scenes Remaining:</strong> {allScenes.length - visitedScenes.size}
             </div>
+            {currentSession && (
+              <>
+                <div>
+                  <strong>Session Started:</strong> {new Date(currentSession.startedAt || '').toLocaleString()}
+                </div>
+                <div>
+                  <strong>Player Decisions:</strong> {playerDecisions.length}
+                </div>
+                <div>
+                  <strong>Session Status:</strong> {currentSession.endedAt ? 'Ended' : 'In Progress'}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -518,6 +563,44 @@ export function SceneDisplay({
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Session Dialog */}
+      {showEndSessionDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">End Session</h3>
+            <p className="text-gray-600 mb-6">
+              Is the adventure complete?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  onEndSession?.(true);
+                  setShowEndSessionDialog(false);
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Yes - Complete
+              </button>
+              <button
+                onClick={() => {
+                  onEndSession?.(false);
+                  setShowEndSessionDialog(false);
+                }}
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                No - Continue Later
+              </button>
+              <button
+                onClick={() => setShowEndSessionDialog(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                Cancel
               </button>
             </div>
           </div>

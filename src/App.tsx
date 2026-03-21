@@ -8,8 +8,9 @@ import { SceneDisplay } from './components/SceneDisplay';
 import { NPCList } from './pages/NPCList';
 import { NPCEditor } from './components/NPCEditor';
 import { getDatabaseManager, initializeDatabase } from './database/connection';
-import { AdventureRepository, SceneRepository, NPCRepository } from './repositories';
-import type { Adventure, AdventureFormData, Scene, NPC, NPCFormData } from './types';
+import { AdventureRepository, SceneRepository, NPCRepository, SessionRepository, SceneRunStateRepository } from './repositories';
+import type { Adventure, AdventureFormData, Scene, NPC, NPCFormData, Session, SceneRunState } from './types';
+import { log } from './utils/logger';
 
 type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create' | 'npcs' | 'npc-edit' | 'npc-create';
 
@@ -26,6 +27,8 @@ function App() {
   const [navigationHistory, setNavigationHistory] = useState<Scene[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [allScenes, setAllScenes] = useState<Scene[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | undefined>();
+  const [sceneRunStates, setSceneRunStates] = useState<Map<string, SceneRunState>>(new Map());
 
   // Initialize database on app mount
   useEffect(() => {
@@ -61,6 +64,8 @@ function App() {
   };
 
   const handlePlayAdventure = async (adventure: Adventure) => {
+    log.ui('App', 'handlePlayAdventure', { adventureId: adventure.id, title: adventure.title });
+    
     setSelectedAdventure(adventure);
     
     // Load all scenes for this adventure
@@ -70,30 +75,68 @@ function App() {
     setNavigationHistory([]);
     setHistoryIndex(-1);
     
-    if (!adventure.startingSceneId) {
-      // No starting scene set - show message but still go to play view
-      setSelectedScene(null);
-      setCurrentView('play');
-      return;
-    }
+    // Reset session state
+    setCurrentSession(undefined);
+    setSceneRunStates(new Map());
     
-    // Load the starting scene before switching to play view
+    // Start a new session
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
       try {
+        log.session('starting', adventure.id, { adventureTitle: adventure.title });
+        
+        const sessionRepo = new SessionRepository(dbManager.getConnection());
+        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+        
+        // Create new session
+        const sessionResult = await sessionRepo.createWithSessionNumber({
+          adventureId: adventure.id,
+          startingSceneId: adventure.startingSceneId || '',
+          currentSceneId: adventure.startingSceneId || '',
+          isAdventureComplete: false,
+        });
+        
+        if (sessionResult.success && sessionResult.data) {
+          setCurrentSession(sessionResult.data);
+          console.log('Session started:', sessionResult.data);
+        } else {
+          console.error('Failed to create session:', sessionResult.error);
+        }
+        
+        if (!adventure.startingSceneId) {
+          // No starting scene set - show message but still go to play view
+          setSelectedScene(null);
+          setCurrentView('play');
+          return;
+        }
+        
+        // Load the starting scene
         const sceneRepo = new SceneRepository(dbManager.getConnection());
-        const result = await sceneRepo.findById(adventure.startingSceneId);
-        if (result.success && result.data) {
-          setSelectedScene(result.data);
+        const sceneResult = await sceneRepo.findById(adventure.startingSceneId);
+        if (sceneResult.success && sceneResult.data && sessionResult.data) {
+          setSelectedScene(sceneResult.data);
           // Initialize navigation history with starting scene
-          setNavigationHistory([result.data]);
+          setNavigationHistory([sceneResult.data]);
           setHistoryIndex(0);
+          
+          // Enter the scene in session tracking
+          await sceneRunStateRepo.enterScene(sessionResult.data.id, sceneResult.data.id);
+          
+          // Load scene run states for this session
+          const runStatesResult = await sceneRunStateRepo.findBySessionId(sessionResult.data.id);
+          if (runStatesResult.success && runStatesResult.data) {
+            const runStateMap = new Map<string, SceneRunState>();
+            runStatesResult.data.forEach(state => {
+              runStateMap.set(state.sceneId, state);
+            });
+            setSceneRunStates(runStateMap);
+          }
         } else {
           console.error('Starting scene not found:', adventure.startingSceneId);
           setSelectedScene(null);
         }
       } catch (error) {
-        console.error('Failed to load starting scene:', error);
+        console.error('Failed to start session:', error);
         setSelectedScene(null);
       }
     }
@@ -335,13 +378,38 @@ function App() {
     setSelectedScene(scene);
   };
 
-  const handleExitToScene = async (sceneId: string) => {
+  const handleExitToScene = async (sceneId: string, exitOptionId?: string) => {
     // Load the scene and update selected scene
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
       const sceneRepo = new SceneRepository(dbManager.getConnection());
       const result = await sceneRepo.findById(sceneId);
       if (result.success && result.data) {
+        // Track session state if we have an active session
+        if (currentSession && selectedScene) {
+          const sessionRepo = new SessionRepository(dbManager.getConnection());
+          const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+          
+          // Exit current scene
+          await sceneRunStateRepo.exitScene(currentSession.id, selectedScene.id, exitOptionId);
+          
+          // Enter new scene
+          await sceneRunStateRepo.enterScene(currentSession.id, result.data.id);
+          
+          // Update session current scene
+          await sessionRepo.updateCurrentScene(currentSession.id, result.data.id);
+          
+          // Reload scene run states
+          const runStatesResult = await sceneRunStateRepo.findBySessionId(currentSession.id);
+          if (runStatesResult.success && runStatesResult.data) {
+            const runStateMap = new Map<string, SceneRunState>();
+            runStatesResult.data.forEach(state => {
+              runStateMap.set(state.sceneId, state);
+            });
+            setSceneRunStates(runStateMap);
+          }
+        }
+        
         // Add to navigation history
         const newHistory = navigationHistory.slice(0, historyIndex + 1);
         newHistory.push(result.data);
@@ -373,6 +441,106 @@ function App() {
     await handleExitToScene(sceneId);
   };
 
+  const handleEndSession = async (isAdventureComplete: boolean = false) => {
+    if (!currentSession) return;
+    
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      try {
+        const sessionRepo = new SessionRepository(dbManager.getConnection());
+        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+        
+        // Exit current scene if we have one
+        if (selectedScene) {
+          await sceneRunStateRepo.exitScene(currentSession.id, selectedScene.id);
+        }
+        
+        // End the session
+        const result = await sessionRepo.endSession(
+          currentSession.id,
+          selectedScene?.id,
+          isAdventureComplete
+        );
+        
+        if (result.success) {
+          console.log('Session ended successfully');
+          setCurrentSession(undefined);
+          setSceneRunStates(new Map());
+        } else {
+          console.error('Failed to end session:', result.error);
+        }
+      } catch (error) {
+        console.error('Error ending session:', error);
+      }
+    }
+  };
+
+  const handleResumeSession = async (adventure: Adventure) => {
+    setSelectedAdventure(adventure);
+    
+    // Load all scenes for this adventure
+    await loadAllScenes(adventure.id);
+    
+    // Find the latest incomplete session
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      try {
+        const sessionRepo = new SessionRepository(dbManager.getConnection());
+        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+        const sceneRepo = new SceneRepository(dbManager.getConnection());
+        
+        // Get latest session for this adventure
+        const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
+        
+        if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
+          const session = sessionResult.data;
+          setCurrentSession(session);
+          
+          // Load scene run states for this session
+          const runStatesResult = await sceneRunStateRepo.findBySessionId(session.id);
+          if (runStatesResult.success && runStatesResult.data) {
+            const runStateMap = new Map<string, SceneRunState>();
+            runStatesResult.data.forEach(state => {
+              runStateMap.set(state.sceneId, state);
+            });
+            setSceneRunStates(runStateMap);
+          }
+          
+          // Load the current scene
+          if (session.currentSceneId) {
+            const sceneResult = await sceneRepo.findById(session.currentSceneId);
+            if (sceneResult.success && sceneResult.data) {
+              setSelectedScene(sceneResult.data);
+              
+              // Build navigation history from scene run states
+              const history: Scene[] = [];
+              for (const state of runStatesResult.data || []) {
+                const sceneResult = await sceneRepo.findById(state.sceneId);
+                if (sceneResult.success && sceneResult.data) {
+                  history.push(sceneResult.data);
+                }
+              }
+              setNavigationHistory(history);
+              setHistoryIndex(history.length - 1);
+            }
+          }
+          
+          console.log('Session resumed:', session);
+        } else {
+          // No incomplete session found, start a new one
+          await handlePlayAdventure(adventure);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to resume session:', error);
+        // Fall back to starting new session
+        await handlePlayAdventure(adventure);
+        return;
+      }
+    }
+    setCurrentView('play');
+  };
+
   const loadAllScenes = async (adventureId: string) => {
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
@@ -397,6 +565,8 @@ function App() {
             setCurrentView={setCurrentView}
             setSelectedAdventure={setSelectedAdventure}
             onSetStartingScene={handlePlayAdventure}
+            onPlayAdventure={handlePlayAdventure}
+            onResumeSession={handleResumeSession}
           />
         );
       
@@ -499,6 +669,9 @@ function App() {
             canNavigateForward={historyIndex < navigationHistory.length - 1}
             navigationHistory={navigationHistory}
             historyIndex={historyIndex}
+            currentSession={currentSession}
+            sceneRunState={sceneRunStates.get(selectedScene.id)}
+            onEndSession={handleEndSession}
           />
         ) : (
           <div className="max-w-6xl mx-auto p-6">
@@ -538,7 +711,7 @@ function App() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-blue-600">RPG Scene Navigator</h1>
             <div className="text-sm text-gray-600">
-              Phase 1 Foundation
+              Phase 2 Complete
             </div>
           </div>
         </div>
@@ -564,7 +737,7 @@ function App() {
       </main>
       <footer className="border-t mt-12">
         <div className="container mx-auto px-4 py-4 text-center text-sm text-gray-600">
-          RPG Scene Navigator - Phase 1 Implementation
+          RPG Scene Navigator - Phase 2 Implementation
         </div>
       </footer>
     </div>

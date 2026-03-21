@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Play, MapPin, Users } from 'lucide-react';
 import type { Adventure, AdventureStatus } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
-import { AdventureRepository } from '@/repositories/adventure';
+import { AdventureRepository, SessionRepository } from '@/repositories';
 
 interface AdventureListProps {
   onCreateAdventure: () => void;
@@ -14,6 +14,8 @@ interface AdventureListProps {
   setCurrentView?: (view: string) => void; // Add setCurrentView prop
   setSelectedAdventure?: (adventure: Adventure) => void; // Add setSelectedAdventure prop
   onSetStartingScene?: (adventure: Adventure) => void; // Add onSetStartingScene prop
+  onPlayAdventure?: (adventure: Adventure) => void;
+  onResumeSession?: (adventure: Adventure) => void;
 }
 
 export function AdventureList({ 
@@ -24,7 +26,9 @@ export function AdventureList({
   onAdventureSaved,
   setCurrentView,
   setSelectedAdventure,
-  onSetStartingScene
+  onSetStartingScene,
+  onPlayAdventure,
+  onResumeSession
 }: AdventureListProps) {
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +36,7 @@ export function AdventureList({
   const [filter, setFilter] = useState<AdventureStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
+  const [adventuresWithSessions, setAdventuresWithSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAdventures();
@@ -58,6 +63,8 @@ export function AdventureList({
       
       // Use AdventureRepository to properly map database rows to entities
       const adventureRepo = new AdventureRepository(dbManager.getConnection());
+      const sessionRepo = new SessionRepository(dbManager.getConnection());
+      
       const result = await adventureRepo.findAll({ orderBy: 'updated_at', orderDirection: 'DESC' });
 
       console.log('📋 AdventureList - Loaded adventures:', result.data?.map(a => ({
@@ -67,7 +74,18 @@ export function AdventureList({
       })));
 
       if (result.success && result.data) {
+        // Check for active sessions
+        const activeSessionIds = new Set<string>();
+        
+        for (const adventure of result.data) {
+          const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
+          if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
+            activeSessionIds.add(adventure.id);
+          }
+        }
+        
         setAdventures(result.data);
+        setAdventuresWithSessions(activeSessionIds);
         setError(null);
       } else {
         setError('Failed to load adventures');
@@ -223,15 +241,23 @@ export function AdventureList({
               )}
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (onSetStartingScene) onSetStartingScene(adventure);
-                  }}
-                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  Play
-                </button>
+                {adventuresWithSessions.has(adventure.id) ? (
+                  <button
+                    onClick={() => onResumeSession?.(adventure)}
+                    className="px-3 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-2"
+                  >
+                    <Play className="h-4 w-4" />
+                    Resume
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onPlayAdventure?.(adventure)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Play className="h-4 w-4" />
+                    Play
+                  </button>
+                )}
                 <button
                   onClick={() => onEditAdventure(adventure)}
                   className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"

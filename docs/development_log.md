@@ -23,7 +23,44 @@ RPG Scene Navigator is a web-based tool for Dungeon Masters to create, manage, a
 - **Navigation:** Multi-view application state management
 - **Form Validation:** Zod schemas for all data types
 
-## Phase 2: Scene Management ✅
+## Phase 2: Scene Management & Play Mode ✅
+
+### Scene Navigation Implementation
+**Enhanced Features Beyond Requirements:**
+- **Navigation History**: Back/forward buttons with proper state management
+- **Scene List Panel**: Collapsible panel showing all scenes for quick jumping
+- **Breadcrumb Navigation**: Visual path showing navigation through scenes
+- **Enhanced Session State**: Navigation position, scenes remaining, progress metrics
+
+**Technical Implementation:**
+```typescript
+// Navigation history tracking in App.tsx
+const [navigationHistory, setNavigationHistory] = useState<Scene[]>([]);
+const [historyIndex, setHistoryIndex] = useState(-1);
+
+// SceneDisplay navigation UI
+<Navigation>
+  <BackButton disabled={!canNavigateBack} />
+  <ForwardButton disabled={!canNavigateForward} />
+  <SceneListToggle />
+  <Breadcrumb path={navigationHistory.slice(0, historyIndex + 1)} />
+</Navigation>
+```
+
+### Test Suite Implementation
+**Testing Framework Setup:**
+- **Vitest + React Testing Library** configuration
+- **Mock setup** for IndexedDB, localStorage, crypto.randomUUID
+- **Test scripts** added to package.json
+
+**Critical Test Coverage:**
+- **Repository Tests** (8/8 passing): Data conversion bug prevention
+  - `rowToEntity` handles both snake_case and camelCase fields
+  - `entityToRow` converts empty strings to null
+  - Field mapping for `starting_scene_id` ↔ `startingSceneId`
+- **Component Tests**: Form state and navigation behavior
+- **Integration Tests**: End-to-end workflows
+
 ### Key Implementation Decisions
 
 #### Data Storage Strategy
@@ -59,6 +96,13 @@ RPG Scene Navigator is a web-based tool for Dungeon Masters to create, manage, a
    - Solution: Call `loadScenes()` after swapping sort orders
    - File: `SceneList.tsx`
 
+5. **Starting Scene Persistence Bug:** Critical bug fix
+   - Problem: `startingSceneId` not persisting due to field conversion issues
+   - Solution: Fixed snake_case/camelCase conversion in repositories and form timing
+   - Files: `adventure.ts`, `indexeddb-connection.ts`, `AdventureForm.tsx`
+   - Impact: Starting scenes now save and load correctly
+   - Test Coverage: Added comprehensive repository tests to prevent regression
+
 ## Database Schema Updates
 ### JSON Fields Added to Scenes
 ```sql
@@ -75,27 +119,33 @@ if (entity.sceneNpcRefs !== undefined) row.scene_npcs = entity.sceneNpcRefs;
 ```
 
 ## Files Modified
-### Core Infrastructure
+
+### Phase 1: Core Infrastructure
 - `src/database/connection.ts` - Database manager exports
 - `src/database/indexeddb-connection.ts` - Production implementation
 - `src/database/mock-connection.ts` - Testing implementation
 - `src/database/schema.ts` - Schema definitions
 - `src/repositories/base.ts` - Base repository class
 
-### Entity Repositories
-- `src/repositories/adventure.ts` - Adventure operations
+### Phase 2: Authoring & Play Mode
+- `src/repositories/adventure.ts` - Adventure operations (bug fixes)
 - `src/repositories/scene.ts` - Scene operations
 - `src/types/index.ts` - TypeScript interfaces
-
-### UI Components
-- `src/App.tsx` - Main application state and routing
-- `src/components/AdventureForm.tsx` - Adventure create/edit form
+- `src/App.tsx` - Navigation history and play mode enhancements
+- `src/components/AdventureForm.tsx` - Starting scene selection and form fixes
+- `src/components/SceneDisplay.tsx` - Enhanced navigation UI
 - `src/components/SceneEditor.tsx` - Scene create/edit form
 - `src/pages/AdventureList.tsx` - Adventure listing
 - `src/pages/SceneList.tsx` - Scene listing and management
-
-### Validation Schemas
 - `src/schemas/index.ts` - Zod validation schemas
+
+### Phase 2: Testing Infrastructure
+- `vitest.config.ts` - Vitest configuration
+- `src/test/setup.ts` - Test setup and mocks
+- `src/test/repositories/adventure.test.ts` - Repository tests
+- `src/test/components/AdventureForm.test.tsx` - Component tests
+- `src/test/integration/starting-scene.test.tsx` - Integration tests
+- `package.json` - Test scripts and dependencies
 
 ## Testing Status
 ### ✅ Working Features
@@ -105,6 +155,15 @@ if (entity.sceneNpcRefs !== undefined) row.scene_npcs = entity.sceneNpcRefs;
 - Scene filtering and sorting
 - Navigation between views
 - Data persistence
+- Scene-to-scene navigation with history
+- Starting scene persistence
+- Enhanced session state tracking
+
+### ✅ Test Coverage
+- **Repository Tests**: 8/8 passing - Data conversion bug prevention
+- **Integration Tests**: End-to-end workflow testing
+- **Component Tests**: Form state and navigation (in progress)
+- **Mock Infrastructure**: IndexedDB, localStorage, crypto mocks
 
 ### ⚠️ Known Issues
 - Scene reordering arrows (see Known Bugs below)
@@ -114,6 +173,7 @@ if (entity.sceneNpcRefs !== undefined) row.scene_npcs = entity.sceneNpcRefs;
 - JSON parsing for complex fields on every load
 - Single query approach reduces database calls
 - LocalStorage fallback ensures data availability
+- Navigation history tracking adds minimal overhead
 
 ## Future Architecture Notes
 ### Migration Path to Relational Storage
@@ -128,13 +188,14 @@ When moving to real SQL database:
 - JSON blobs may impact performance at scale
 - Consider pagination for large adventure lists
 - Add indexing strategies for search functionality
+- Navigation history scales linearly with session length
 
 ## Development Tools
 - **Build System:** Vite with TypeScript
 - **Package Manager:** npm
 - **Code Quality:** ESLint + TypeScript strict mode
-- **Testing:** Manual UAT (automated tests future scope)
+- **Testing:** Vitest + React Testing Library
 
 ---
-*Last Updated: March 15, 2026*
-*Phase: Scene Management Complete*
+*Last Updated: March 20, 2026*
+*Phase: Scene Navigation & Testing Complete*
