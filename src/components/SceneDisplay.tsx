@@ -8,6 +8,14 @@ interface SceneDisplayProps {
   adventureId: string;
   onSceneChange?: (scene: Scene) => void;
   onExitToScene?: (sceneId: string) => void;
+  onNavigateBack?: () => void;
+  onNavigateForward?: () => void;
+  onJumpToScene?: (sceneId: string) => void;
+  allScenes?: Scene[];
+  canNavigateBack?: boolean;
+  canNavigateForward?: boolean;
+  navigationHistory?: Scene[];
+  historyIndex?: number;
   className?: string;
 }
 
@@ -16,6 +24,14 @@ export function SceneDisplay({
   adventureId, 
   onSceneChange, 
   onExitToScene,
+  onNavigateBack,
+  onNavigateForward,
+  onJumpToScene,
+  allScenes = [],
+  canNavigateBack = false,
+  canNavigateForward = false,
+  navigationHistory = [],
+  historyIndex = -1,
   className = '' 
 }: SceneDisplayProps) {
   const [gmNotes, setGmNotes] = useState('');
@@ -23,6 +39,7 @@ export function SceneDisplay({
   const [sessionNotes, setSessionNotes] = useState('');
   const [showSessionNotes, setShowSessionNotes] = useState(false);
   const [visitedScenes, setVisitedScenes] = useState<Set<string>>(new Set());
+  const [showSceneList, setShowSceneList] = useState(false);
 
   // Load saved notes from localStorage
   useEffect(() => {
@@ -113,6 +130,103 @@ export function SceneDisplay({
             </button>
           </div>
         </div>
+
+        {/* Navigation Bar */}
+        <div className="border-t border-gray-200 pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {/* Back/Forward Navigation */}
+              <button
+                onClick={onNavigateBack}
+                disabled={!canNavigateBack}
+                className={`px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                  canNavigateBack 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+              
+              <button
+                onClick={onNavigateForward}
+                disabled={!canNavigateForward}
+                className={`px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                  canNavigateForward 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Forward
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              {/* Scene List Toggle */}
+              <button
+                onClick={() => setShowSceneList(!showSceneList)}
+                className={`px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                  showSceneList 
+                    ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <MapPin className="h-4 w-4" />
+                {showSceneList ? 'Hide' : 'Show'} Scene List
+              </button>
+            </div>
+
+            {/* Navigation History Breadcrumb */}
+            {navigationHistory.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Path:</span>
+                <div className="flex items-center gap-1">
+                  {navigationHistory.slice(0, historyIndex + 1).map((historyScene, index) => (
+                    <React.Fragment key={historyScene.id}>
+                      {index > 0 && <span className="text-gray-400">→</span>}
+                      <button
+                        onClick={() => onJumpToScene?.(historyScene.id)}
+                        className="px-2 py-1 rounded text-xs bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      >
+                        {historyScene.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scene List Panel */}
+        {showSceneList && (
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">All Scenes</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {allScenes.map((sceneItem) => (
+                  <button
+                    key={sceneItem.id}
+                    onClick={() => onJumpToScene?.(sceneItem.id)}
+                    className={`text-left p-3 rounded border transition-colors ${
+                      sceneItem.id === scene.id
+                        ? 'bg-blue-100 border-blue-300 text-blue-900'
+                        : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">{sceneItem.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {sceneItem.type} {sceneItem.location && `• ${sceneItem.location}`}
+                    </div>
+                    {sceneItem.id === scene.id && (
+                      <div className="text-xs text-blue-600 mt-1">Current Scene</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scene Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -320,7 +434,7 @@ export function SceneDisplay({
             <Shield className="h-5 w-5 mr-2" />
             Session State
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
             <div>
               <strong>Current Scene:</strong> {scene.name}
             </div>
@@ -328,8 +442,17 @@ export function SceneDisplay({
               <strong>Visited Scenes:</strong> {visitedScenes.size} scenes
             </div>
             <div>
+              <strong>Navigation Position:</strong> {historyIndex + 1} / {navigationHistory.length}
+            </div>
+            <div>
+              <strong>Total Scenes in Adventure:</strong> {allScenes.length}
+            </div>
+            <div>
               <strong>Session Duration:</strong> {/* Would track actual time */}
               In progress
+            </div>
+            <div>
+              <strong>Scenes Remaining:</strong> {allScenes.length - visitedScenes.size}
             </div>
           </div>
         </div>

@@ -23,6 +23,9 @@ function App() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [adventureListKey, setAdventureListKey] = useState(0); // Add key to force refresh
   const [selectedNPC, setSelectedNPC] = useState<NPC | undefined>();
+  const [navigationHistory, setNavigationHistory] = useState<Scene[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [allScenes, setAllScenes] = useState<Scene[]>([]);
 
   // Initialize database on app mount
   useEffect(() => {
@@ -60,6 +63,13 @@ function App() {
   const handlePlayAdventure = async (adventure: Adventure) => {
     setSelectedAdventure(adventure);
     
+    // Load all scenes for this adventure
+    await loadAllScenes(adventure.id);
+    
+    // Reset navigation history
+    setNavigationHistory([]);
+    setHistoryIndex(-1);
+    
     if (!adventure.startingSceneId) {
       // No starting scene set - show message but still go to play view
       setSelectedScene(null);
@@ -75,6 +85,9 @@ function App() {
         const result = await sceneRepo.findById(adventure.startingSceneId);
         if (result.success && result.data) {
           setSelectedScene(result.data);
+          // Initialize navigation history with starting scene
+          setNavigationHistory([result.data]);
+          setHistoryIndex(0);
         } else {
           console.error('Starting scene not found:', adventure.startingSceneId);
           setSelectedScene(null);
@@ -322,16 +335,52 @@ function App() {
     setSelectedScene(scene);
   };
 
-  const handleExitToScene = (sceneId: string) => {
+  const handleExitToScene = async (sceneId: string) => {
     // Load the scene and update selected scene
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
       const sceneRepo = new SceneRepository(dbManager.getConnection());
-      sceneRepo.findById(sceneId).then(result => {
-        if (result.success && result.data) {
-          setSelectedScene(result.data);
-        }
-      });
+      const result = await sceneRepo.findById(sceneId);
+      if (result.success && result.data) {
+        // Add to navigation history
+        const newHistory = navigationHistory.slice(0, historyIndex + 1);
+        newHistory.push(result.data);
+        setNavigationHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+        
+        setSelectedScene(result.data);
+      }
+    }
+  };
+
+  const handleNavigateBack = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setSelectedScene(navigationHistory[newIndex]);
+    }
+  };
+
+  const handleNavigateForward = () => {
+    if (historyIndex < navigationHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setSelectedScene(navigationHistory[newIndex]);
+    }
+  };
+
+  const handleJumpToScene = async (sceneId: string) => {
+    await handleExitToScene(sceneId);
+  };
+
+  const loadAllScenes = async (adventureId: string) => {
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      const sceneRepo = new SceneRepository(dbManager.getConnection());
+      const result = await sceneRepo.findByAdventureId(adventureId);
+      if (result.success && result.data) {
+        setAllScenes(result.data);
+      }
     }
   };
 
@@ -442,6 +491,14 @@ function App() {
             adventureId={selectedAdventure?.id || ''}
             onSceneChange={handleSceneChange}
             onExitToScene={handleExitToScene}
+            onNavigateBack={handleNavigateBack}
+            onNavigateForward={handleNavigateForward}
+            onJumpToScene={handleJumpToScene}
+            allScenes={allScenes}
+            canNavigateBack={historyIndex > 0}
+            canNavigateForward={historyIndex < navigationHistory.length - 1}
+            navigationHistory={navigationHistory}
+            historyIndex={historyIndex}
           />
         ) : (
           <div className="max-w-6xl mx-auto p-6">
