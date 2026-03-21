@@ -16,10 +16,15 @@ export class SessionRepository extends BaseRepository<Session> {
     try {
       log.repository('findByAdventureId', 'sessions', { adventureId });
       
-      const result = await this.connection.all(
-        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC',
-        [adventureId]
-      );
+      // Defensive check for connection
+      if (!this.db) {
+        log.error('session', 'Database connection is undefined', new Error('Connection not initialized'), { adventureId });
+        return { success: false, error: 'Database connection not available' };
+      }
+      
+      const result = this.db.prepare(
+        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC'
+      ).all(adventureId);
       
       const sessions = result.map(this.rowToEntity);
       log.repository('findByAdventureId', 'sessions', { adventureId, count: sessions.length });
@@ -34,10 +39,15 @@ export class SessionRepository extends BaseRepository<Session> {
     try {
       log.repository('findLatestByAdventureId', 'sessions', { adventureId });
       
-      const result = await this.connection.get(
-        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC LIMIT 1',
-        [adventureId]
-      );
+      // Defensive check for connection
+      if (!this.db) {
+        log.error('session', 'Database connection is undefined', new Error('Connection not initialized'), { adventureId });
+        return { success: false, error: 'Database connection not available' };
+      }
+      
+      const result = this.db.prepare(
+        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC LIMIT 1'
+      ).get(adventureId);
       
       if (!result) {
         log.repository('findLatestByAdventureId', 'sessions', { adventureId, found: false });
@@ -55,10 +65,9 @@ export class SessionRepository extends BaseRepository<Session> {
 
   async getNextSessionNumber(adventureId: string): Promise<{ success: boolean; data?: number; error?: string }> {
     try {
-      const result = await this.connection.get(
-        'SELECT MAX(session_number) as max_number FROM sessions WHERE adventure_id = ?',
-        [adventureId]
-      );
+      const result = this.db.prepare(
+        'SELECT MAX(session_number) as max_number FROM sessions WHERE adventure_id = ?'
+      ).get(adventureId);
       
       const nextNumber = (result?.max_number || 0) + 1;
       return { success: true, data: nextNumber };

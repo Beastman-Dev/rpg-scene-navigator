@@ -55,15 +55,13 @@ export function AdventureList({
       
       const dbManager = getDatabaseManager();
       if (!dbManager.isReady()) {
-        // Database not ready yet, wait and retry
-        console.log('Database not ready, retrying in 500ms...');
-        setTimeout(() => loadAdventures(), 500);
-        return;
+        throw new Error('Database not ready when AdventureList tried to load');
       }
       
-      // Use AdventureRepository to properly map database rows to entities
-      const adventureRepo = new AdventureRepository(dbManager.getConnection());
-      const sessionRepo = new SessionRepository(dbManager.getConnection());
+      // Use async connection to ensure database is ready
+      const connection = await dbManager.getConnectionAsync();
+      const adventureRepo = new AdventureRepository(connection);
+      const sessionRepo = new SessionRepository(connection);
       
       const result = await adventureRepo.findAll({ orderBy: 'updated_at', orderDirection: 'DESC' });
 
@@ -78,9 +76,14 @@ export function AdventureList({
         const activeSessionIds = new Set<string>();
         
         for (const adventure of result.data) {
-          const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
-          if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
-            activeSessionIds.add(adventure.id);
+          try {
+            const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
+            if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
+              activeSessionIds.add(adventure.id);
+            }
+          } catch (sessionError) {
+            console.warn(`Failed to check session for adventure ${adventure.id}:`, sessionError);
+            // Continue with other adventures even if one fails
           }
         }
         

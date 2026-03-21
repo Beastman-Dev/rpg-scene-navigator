@@ -384,6 +384,14 @@ export class IndexedDBManager {
     return this.db;
   }
 
+  async getConnectionAsync(): Promise<IndexedDBConnection> {
+    // Wait for initialization if not ready
+    while (!this.isInitialized || !this.db) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    return this.db!;
+  }
+
   isReady(): boolean {
     return this.isInitialized && this.db !== null;
   }

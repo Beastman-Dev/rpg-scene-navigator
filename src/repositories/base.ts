@@ -156,12 +156,16 @@ export abstract class BaseRepository<T extends { id: string }> {
   /**
    * Find entity by ID
    */
-  async findById(id: string): Promise<FindResult<T>> {
+  async findById(id: string): Promise<{ success: boolean; data?: T; error?: string }> {
     try {
       const sql = `SELECT * FROM ${this.getTableName()} WHERE id = ?`;
+      log.database('findById', this.getTableName(), { sql, id });
+      
       const row = this.db.prepare(sql).get(id);
+      log.database('findById', this.getTableName(), { hasRow: !!row, id });
       
       if (!row) {
+        log.repository('findById', this.getTableName(), { result: 'not_found', id });
         return { success: false, error: 'Entity not found' };
       }
 
@@ -169,6 +173,7 @@ export abstract class BaseRepository<T extends { id: string }> {
       processedRow = this.parseBooleanFields(processedRow, this.getTableName());
       
       const entity = this.rowToEntity(processedRow);
+      log.repository('findById', this.getTableName(), { result: 'success', id, entityId: entity.id });
       return { success: true, data: entity };
     } catch (error) {
       log.error('repository', `FindById failed for ${this.getTableName()}`, error instanceof Error ? error : new Error(String(error)), { id });

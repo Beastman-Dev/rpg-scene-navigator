@@ -85,8 +85,9 @@ function App() {
       try {
         log.session('starting', adventure.id, { adventureTitle: adventure.title });
         
-        const sessionRepo = new SessionRepository(dbManager.getConnection());
-        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+        const connection = await dbManager.getConnectionAsync();
+        const sessionRepo = new SessionRepository(connection);
+        const sceneRunStateRepo = new SceneRunStateRepository(connection);
         
         // Create new session
         const sessionResult = await sessionRepo.createWithSessionNumber({
@@ -105,16 +106,39 @@ function App() {
         
         if (!adventure.startingSceneId) {
           // No starting scene set - show message but still go to play view
+          log.warn('ui', 'Adventure has no starting scene set', { 
+            adventureId: adventure.id, 
+            adventureTitle: adventure.title 
+          });
           setSelectedScene(null);
           setCurrentView('play');
           return;
         }
         
         // Load the starting scene
-        const sceneRepo = new SceneRepository(dbManager.getConnection());
+        const sceneRepo = new SceneRepository(connection);
+        log.ui('App', 'handlePlayAdventure', { 
+          action: 'loading_starting_scene', 
+          startingSceneId: adventure.startingSceneId,
+          sessionId: sessionResult.data?.id 
+        });
+        
         const sceneResult = await sceneRepo.findById(adventure.startingSceneId);
+        log.ui('App', 'handlePlayAdventure', { 
+          action: 'scene_load_result', 
+          success: sceneResult.success,
+          hasData: !!sceneResult.data,
+          sceneId: adventure.startingSceneId
+        });
+        
         if (sceneResult.success && sceneResult.data && sessionResult.data) {
           setSelectedScene(sceneResult.data);
+          log.ui('App', 'handlePlayAdventure', { 
+            action: 'scene_loaded', 
+            sceneName: sceneResult.data.name,
+            sceneId: sceneResult.data.id 
+          });
+          
           // Initialize navigation history with starting scene
           setNavigationHistory([sceneResult.data]);
           setHistoryIndex(0);
@@ -132,8 +156,40 @@ function App() {
             setSceneRunStates(runStateMap);
           }
         } else {
-          console.error('Starting scene not found:', adventure.startingSceneId);
-          setSelectedScene(null);
+          log.warn('ui', 'Starting scene not found, trying fallback', {
+            adventureId: adventure.id,
+            startingSceneId: adventure.startingSceneId,
+            sceneSuccess: sceneResult.success,
+            hasSceneData: !!sceneResult.data,
+            hasSessionData: !!sessionResult.data,
+            sceneError: sceneResult.error
+          });
+          
+          // Try to load the first scene as a fallback
+          const allScenesResult = await sceneRepo.findByAdventureId(adventure.id);
+          if (allScenesResult.success && allScenesResult.data && allScenesResult.data.length > 0) {
+            const firstScene = allScenesResult.data[0];
+            log.ui('App', 'handlePlayAdventure', { 
+              action: 'fallback_scene_loaded', 
+              sceneName: firstScene.name,
+              sceneId: firstScene.id,
+              totalScenes: allScenesResult.data.length
+            });
+            
+            setSelectedScene(firstScene);
+            setNavigationHistory([firstScene]);
+            setHistoryIndex(0);
+            
+            if (sessionResult.data) {
+              await sceneRunStateRepo.enterScene(sessionResult.data.id, firstScene.id);
+            }
+          } else {
+            log.error('ui', 'No scenes found for adventure', new Error('Adventure has no scenes'), {
+              adventureId: adventure.id,
+              adventureTitle: adventure.title
+            });
+            setSelectedScene(null);
+          }
         }
       } catch (error) {
         console.error('Failed to start session:', error);
@@ -718,6 +774,33 @@ function App() {
       </header>
       <main className="container mx-auto px-4 py-8">
         {/* Database Error Display */}
+        {dbError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex justify-between items-center">
+              <h3 className="text-red-800 font-medium">Database Error</h3>
+              <button
+                onClick={() => setDbError(null)}
+                className="text-red-600 hover:text-red-800"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-red-700">{dbError}</p>
+          </div>
+        )}
+
+        {/* Database Loading State */}
+        {!dbInitialized && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <h2 className="text-lg font-medium text-gray-900 mb-2">Initializing Database</h2>
+              <p className="text-gray-600">Setting up your RPG adventure database...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Save Error Display */}
         {saveError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
             <div className="flex justify-between items-center">
@@ -733,7 +816,8 @@ function App() {
           </div>
         )}
         
-        {renderCurrentView()}
+        {/* Only render views when database is ready */}
+        {dbInitialized && renderCurrentView()}
       </main>
       <footer className="border-t mt-12">
         <div className="container mx-auto px-4 py-4 text-center text-sm text-gray-600">
