@@ -134,8 +134,23 @@ export class SessionRepository extends BaseRepository<Session> {
 
   // Convert database row to Session entity
   protected rowToEntity(row: any): Session {
+    console.log('🔄 rowToEntity: Converting session row:', {
+      rowKeys: Object.keys(row),
+      hasId: 'id' in row,
+      idValue: row.id,
+      adventureId: row.adventure_id,
+      sessionNumber: row.session_number
+    });
+    
+    // Generate a composite ID for sessions without IDs (old sessions)
+    let sessionId = row.id;
+    if (!sessionId && row.adventure_id && row.session_number) {
+      sessionId = `${row.adventure_id}-session-${row.session_number}`;
+      console.log('🔧 Generated composite session ID:', sessionId);
+    }
+    
     return {
-      id: row.id,
+      id: sessionId,
       adventureId: row.adventure_id,
       sessionNumber: row.session_number,
       startedAt: row.started_at,
@@ -153,6 +168,7 @@ export class SessionRepository extends BaseRepository<Session> {
   // Convert Session entity to database row
   protected entityToRow(entity: Session): any {
     const row: any = {
+      id: entity.id,
       adventure_id: entity.adventureId,
       session_number: entity.sessionNumber,
       starting_scene_id: entity.startingSceneId,
@@ -160,10 +176,12 @@ export class SessionRepository extends BaseRepository<Session> {
       is_adventure_complete: entity.isAdventureComplete ? 1 : 0,
     };
 
+    if (entity.createdAt !== undefined) row.created_at = entity.createdAt;
     if (entity.startedAt !== undefined) row.started_at = entity.startedAt;
     if (entity.endedAt !== undefined) row.ended_at = entity.endedAt;
     if (entity.endingSceneId !== undefined) row.ending_scene_id = entity.endingSceneId;
     if (entity.summary !== undefined) row.summary = entity.summary;
+    if (entity.updatedAt !== undefined) row.updated_at = entity.updatedAt;
 
     return row;
   }

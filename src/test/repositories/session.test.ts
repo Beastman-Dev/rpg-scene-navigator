@@ -13,8 +13,25 @@ class MockSessionRepository extends SessionRepository {
     return 'sessions';
   }
 
+  // Override rowToEntity for testing
+  rowToEntity(row: any) {
+    return {
+      id: row.id,
+      adventureId: row.adventure_id,
+      sessionNumber: row.session_number,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      startingSceneId: row.starting_scene_id,
+      currentSceneId: row.current_scene_id,
+      endingSceneId: row.ending_scene_id,
+      isAdventureComplete: Boolean(row.is_adventure_complete),
+      summary: row.summary,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
   // Expose protected methods for testing
-  rowToEntity = super.rowToEntity.bind(this);
   entityToRow = super.entityToRow.bind(this);
 }
 
@@ -211,28 +228,32 @@ describe('SessionRepository', () => {
   describe('findByAdventureId', () => {
     it('should return sessions for adventure ordered by session number', async () => {
       const mockRows = [
-        { id: 'session-2', session_number: 2 },
         { id: 'session-1', session_number: 1 },
+        { id: 'session-2', session_number: 2 }
       ];
-      mockConnection.all.mockResolvedValue(mockRows);
+      
+      const mockStatement = {
+        all: vi.fn().mockResolvedValue(mockRows)
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
-      repo.rowToEntity = vi.fn().mockImplementation((row) => ({
-        id: row.id,
-        sessionNumber: row.session_number,
-      }));
+      // rowToEntity is now mocked in beforeEach
 
       const result = await repo.findByAdventureId('adventure-123');
 
-      expect(mockConnection.all).toHaveBeenCalledWith(
-        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC',
-        ['adventure-123']
+      expect(mockConnection.prepare).toHaveBeenCalledWith(
+        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC'
       );
+      expect(mockStatement.all).toHaveBeenCalledWith('adventure-123');
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(2);
     });
 
     it('should handle database errors', async () => {
-      mockConnection.all.mockRejectedValue(new Error('Database error'));
+      const mockStatement = {
+        all: vi.fn().mockRejectedValue(new Error('Database error'))
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
       const result = await repo.findByAdventureId('adventure-123');
 
@@ -244,28 +265,39 @@ describe('SessionRepository', () => {
   describe('findLatestByAdventureId', () => {
     it('should return latest session for adventure', async () => {
       const mockRow = { id: 'session-2', session_number: 2 };
-      mockConnection.get.mockResolvedValue(mockRow);
+      
+      const mockStatement = {
+        get: vi.fn().mockResolvedValue(mockRow)
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
-      repo.rowToEntity = vi.fn().mockReturnValue({
-        id: 'session-2',
-        sessionNumber: 2,
-      });
+      // rowToEntity is now mocked in beforeEach
 
       const result = await repo.findLatestByAdventureId('adventure-123');
 
-      expect(mockConnection.get).toHaveBeenCalledWith(
-        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC LIMIT 1',
-        ['adventure-123']
+      expect(mockConnection.prepare).toHaveBeenCalledWith(
+        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC LIMIT 1'
       );
+      expect(mockStatement.get).toHaveBeenCalledWith('adventure-123');
       expect(result.success).toBe(true);
-      expect(result.data?.sessionNumber).toBe(2);
+      expect(result.data).toEqual({
+        id: 'session-2',
+        sessionNumber: 2
+      });
     });
 
     it('should return null when no sessions exist', async () => {
-      mockConnection.get.mockResolvedValue(null);
+      const mockStatement = {
+        get: vi.fn().mockResolvedValue(null)
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
       const result = await repo.findLatestByAdventureId('adventure-123');
 
+      expect(mockConnection.prepare).toHaveBeenCalledWith(
+        'SELECT * FROM sessions WHERE adventure_id = ? ORDER BY session_number DESC LIMIT 1'
+      );
+      expect(mockStatement.get).toHaveBeenCalledWith('adventure-123');
       expect(result.success).toBe(true);
       expect(result.data).toBeNull();
     });
@@ -273,23 +305,33 @@ describe('SessionRepository', () => {
 
   describe('getNextSessionNumber', () => {
     it('should return next session number', async () => {
-      mockConnection.get.mockResolvedValue({ max_number: 2 });
+      const mockStatement = {
+        get: vi.fn().mockResolvedValue({ max_number: 2 })
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
       const result = await repo.getNextSessionNumber('adventure-123');
 
-      expect(mockConnection.get).toHaveBeenCalledWith(
-        'SELECT MAX(session_number) as max_number FROM sessions WHERE adventure_id = ?',
-        ['adventure-123']
+      expect(mockConnection.prepare).toHaveBeenCalledWith(
+        'SELECT MAX(session_number) as max_number FROM sessions WHERE adventure_id = ?'
       );
+      expect(mockStatement.get).toHaveBeenCalledWith('adventure-123');
       expect(result.success).toBe(true);
       expect(result.data).toBe(3);
     });
 
     it('should return 1 for first session', async () => {
-      mockConnection.get.mockResolvedValue({ max_number: null });
+      const mockStatement = {
+        get: vi.fn().mockResolvedValue({ max_number: null })
+      };
+      mockConnection.prepare = vi.fn().mockReturnValue(mockStatement);
 
       const result = await repo.getNextSessionNumber('adventure-123');
 
+      expect(mockConnection.prepare).toHaveBeenCalledWith(
+        'SELECT MAX(session_number) as max_number FROM sessions WHERE adventure_id = ?'
+      );
+      expect(mockStatement.get).toHaveBeenCalledWith('adventure-123');
       expect(result.success).toBe(true);
       expect(result.data).toBe(1);
     });

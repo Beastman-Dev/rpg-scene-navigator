@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, MapPin, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, MapPin, Users, FileText } from 'lucide-react';
 import type { Adventure, AdventureStatus } from '@/types';
 import { getDatabaseManager } from '@/database/connection';
-import { AdventureRepository, SessionRepository } from '@/repositories';
+import { AdventureRepository, SessionRepository, GeneratedSummaryRepository } from '@/repositories';
 
 interface AdventureListProps {
   onCreateAdventure: () => void;
@@ -16,6 +16,7 @@ interface AdventureListProps {
   onSetStartingScene?: (adventure: Adventure) => void; // Add onSetStartingScene prop
   onPlayAdventure?: (adventure: Adventure) => void;
   onResumeSession?: (adventure: Adventure) => void;
+  onViewSummaries?: (adventure: Adventure) => void;
 }
 
 export function AdventureList({ 
@@ -28,15 +29,17 @@ export function AdventureList({
   setSelectedAdventure,
   onSetStartingScene,
   onPlayAdventure,
-  onResumeSession
+  onResumeSession,
+  onViewSummaries
 }: AdventureListProps) {
   const [adventures, setAdventures] = useState<Adventure[]>([]);
+  const [adventuresWithSessions, setAdventuresWithSessions] = useState<Set<string>>(new Set());
+  const [adventureSummaryCounts, setAdventureSummaryCounts] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<AdventureStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
-  const [adventuresWithSessions, setAdventuresWithSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAdventures();
@@ -77,18 +80,47 @@ export function AdventureList({
         
         for (const adventure of result.data) {
           try {
+            console.log(`🔍 Checking session for adventure ${adventure.id}: ${adventure.title}`);
             const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
+            console.log(`📊 Session result for ${adventure.id}:`, {
+              success: sessionResult.success,
+              hasData: !!sessionResult.data,
+              sessionData: sessionResult.data,
+              endedAt: sessionResult.data?.endedAt
+            });
+            
             if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
+              console.log(`✅ Found active session for adventure ${adventure.id}`);
               activeSessionIds.add(adventure.id);
+            } else {
+              console.log(`❌ No active session for adventure ${adventure.id}`);
             }
           } catch (sessionError) {
             console.warn(`Failed to check session for adventure ${adventure.id}:`, sessionError);
             // Continue with other adventures even if one fails
           }
         }
+
+        // Load summary counts for each adventure
+        const summaryRepo = new GeneratedSummaryRepository(connection);
+        const summaryCounts = new Map<string, number>();
         
+        for (const adventure of result.data) {
+          try {
+            const summaryResult = await summaryRepo.findByAdventureId(adventure.id);
+            if (summaryResult.success && summaryResult.data) {
+              summaryCounts.set(adventure.id, summaryResult.data.length);
+            }
+          } catch (summaryError) {
+            console.warn(`Failed to check summaries for adventure ${adventure.id}:`, summaryError);
+            summaryCounts.set(adventure.id, 0);
+          }
+        }
+        
+        console.log('🎯 Final active session IDs:', Array.from(activeSessionIds));
         setAdventures(result.data);
         setAdventuresWithSessions(activeSessionIds);
+        setAdventureSummaryCounts(summaryCounts);
         setError(null);
       } else {
         setError('Failed to load adventures');
@@ -287,6 +319,18 @@ export function AdventureList({
                 >
                   <Users className="h-4 w-4" />
                   NPCs
+                </button>
+                <button
+                  onClick={() => onViewSummaries?.(adventure)}
+                  className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Summaries
+                  {adventureSummaryCounts.get(adventure.id) > 0 && (
+                    <span className="bg-indigo-800 text-white text-xs px-2 py-1 rounded-full">
+                      {adventureSummaryCounts.get(adventure.id)}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => handleDelete(adventure)}

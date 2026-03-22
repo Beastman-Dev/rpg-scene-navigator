@@ -141,6 +141,15 @@ export interface AdventureSummary {
   generatedAt: string;
 }
 
+// Import summary template types
+export type { 
+  SummaryTemplate, 
+  TemplateVariable, 
+  TemplateData, 
+  GeneratedSummary, 
+  SummarySection 
+} from './summary-templates';
+
 // JSON file format types
 export interface AdventureFile {
   schemaVersion: string;

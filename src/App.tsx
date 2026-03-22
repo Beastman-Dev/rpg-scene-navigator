@@ -7,12 +7,14 @@ import { SceneEditor } from './components/SceneEditor';
 import { SceneDisplay } from './components/SceneDisplay';
 import { NPCList } from './pages/NPCList';
 import { NPCEditor } from './components/NPCEditor';
+import { SummaryViewer } from './components/SummaryViewer';
 import { getDatabaseManager, initializeDatabase } from './database/connection';
-import { AdventureRepository, SceneRepository, NPCRepository, SessionRepository, SceneRunStateRepository } from './repositories';
+import { AdventureRepository, SceneRepository, NPCRepository, SessionRepository, SceneRunStateRepository, SummaryTemplateRepository, GeneratedSummaryRepository } from './repositories';
+import { SummaryGenerationService } from './services/summary-generation';
 import type { Adventure, AdventureFormData, Scene, NPC, NPCFormData, Session, SceneRunState } from './types';
 import { log } from './utils/logger';
 
-type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create' | 'npcs' | 'npc-edit' | 'npc-create';
+type View = 'list' | 'create' | 'edit' | 'play' | 'scenes' | 'scene-edit' | 'scene-create' | 'npcs' | 'npc-edit' | 'npc-create' | 'summaries';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('list');
@@ -27,7 +29,18 @@ function App() {
   const [navigationHistory, setNavigationHistory] = useState<Scene[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [allScenes, setAllScenes] = useState<Scene[]>([]);
+  const [allNPCs, setAllNPCs] = useState<NPC[]>([]);
   const [currentSession, setCurrentSession] = useState<Session | undefined>();
+
+// Add debugging for session state changes
+const debugSetCurrentSession = (session: Session | undefined) => {
+  console.log('setCurrentSession called with:', session ? {
+    id: session.id,
+    sessionNumber: session.sessionNumber,
+    adventureId: session.adventureId
+  } : 'undefined');
+  setCurrentSession(session);
+};
   const [sceneRunStates, setSceneRunStates] = useState<Map<string, SceneRunState>>(new Map());
 
   // Initialize database on app mount
@@ -63,20 +76,62 @@ function App() {
     setSelectedAdventure(adventure);
   };
 
+  const handleResetDatabase = async () => {
+    if (window.confirm('Are you sure you want to reset the entire database? This will delete all adventures, scenes, NPCs, and sessions. This action cannot be undone.')) {
+      try {
+        console.log('🗄️ Resetting database...');
+        
+        // Clear all localStorage data
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('rpg-db-')) {
+            localStorage.removeItem(key);
+            console.log(`🗑️ Removed: ${key}`);
+          }
+        });
+        
+        // Reinitialize the database
+        await initializeDatabase();
+        
+        // Reset all state
+        setCurrentView('list');
+        setSelectedAdventure(undefined);
+        setSelectedScene(undefined);
+        setAllScenes([]);
+        setAllNPCs([]);
+        setCurrentSession(undefined);
+        setSceneRunStates(new Map());
+        setNavigationHistory([]);
+        setSaveError(null);
+        setSelectedNPC(undefined);
+        setHistoryIndex(-1);
+        setAdventureListKey(prev => prev + 1);
+        
+        console.log('✅ Database reset successfully');
+        alert('Database has been reset successfully! The page will now refresh.');
+        window.location.reload();
+      } catch (error) {
+        console.error('❌ Failed to reset database:', error);
+        alert('Failed to reset database. Please try again.');
+      }
+    }
+  };
+
   const handlePlayAdventure = async (adventure: Adventure) => {
     log.ui('App', 'handlePlayAdventure', { adventureId: adventure.id, title: adventure.title });
     
     setSelectedAdventure(adventure);
     
-    // Load all scenes for this adventure
+    // Load all scenes and NPCs for this adventure
     await loadAllScenes(adventure.id);
+    await loadAllNPCs(adventure.id);
     
     // Reset navigation history
     setNavigationHistory([]);
     setHistoryIndex(-1);
     
     // Reset session state
-    setCurrentSession(undefined);
+    debugSetCurrentSession(undefined);
     setSceneRunStates(new Map());
     
     // Start a new session
@@ -98,8 +153,21 @@ function App() {
         });
         
         if (sessionResult.success && sessionResult.data) {
-          setCurrentSession(sessionResult.data);
+          console.log('Session created with ID:', sessionResult.data.id);
+          console.log('Full session data:', JSON.stringify(sessionResult.data, null, 2));
+          debugSetCurrentSession(sessionResult.data);
           console.log('Session started:', sessionResult.data);
+          
+          // Verify session exists in database (non-blocking)
+          sessionRepo.findById(sessionResult.data.id).then(verifyResult => {
+            if (!verifyResult.success || !verifyResult.data) {
+              console.error('Session created but not found in database:', sessionResult.data.id);
+              console.error('Verification error:', verifyResult.error);
+              // Don't clear the session state, just log the error
+            } else {
+              console.log('Session verified in database:', sessionResult.data.id);
+            }
+          });
         } else {
           console.error('Failed to create session:', sessionResult.error);
         }
@@ -446,13 +514,26 @@ function App() {
           const sessionRepo = new SessionRepository(dbManager.getConnection());
           const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
           
+          // Verify session exists in database (non-blocking)
+          sessionRepo.findById(currentSession.id).then(verifyResult => {
+            if (!verifyResult.success || !verifyResult.data) {
+              console.error('Session not found in database, cannot update scene navigation:', currentSession.id);
+              console.error('Verification error:', verifyResult.error);
+              // Don't interrupt navigation, just log the error
+            } else {
+              console.log('Session verified for scene navigation:', currentSession.id);
+            }
+          });
+          
           // Exit current scene
           await sceneRunStateRepo.exitScene(currentSession.id, selectedScene.id, exitOptionId);
           
           // Enter new scene
+          console.log('Entering scene with session ID:', currentSession.id);
           await sceneRunStateRepo.enterScene(currentSession.id, result.data.id);
           
           // Update session current scene
+          console.log('Updating session current scene with session ID:', currentSession.id);
           await sessionRepo.updateCurrentScene(currentSession.id, result.data.id);
           
           // Reload scene run states
@@ -497,14 +578,95 @@ function App() {
     await handleExitToScene(sceneId);
   };
 
+  const generateSessionSummary = async (sessionId: string, isAdventureComplete: boolean) => {
+    try {
+      const dbManager = getDatabaseManager();
+      if (!dbManager.isReady()) return;
+
+      const connection = await dbManager.getConnectionAsync();
+      
+      // Initialize summary generation service
+      const summaryService = new SummaryGenerationService(
+        new SummaryTemplateRepository(connection),
+        new GeneratedSummaryRepository(connection),
+        new AdventureRepository(connection),
+        new SessionRepository(connection),
+        new SceneRepository(connection),
+        new NPCRepository(connection),
+        new SceneRunStateRepository(connection)
+      );
+
+      // Get session to find adventure ID
+      const sessionRepo = new SessionRepository(connection);
+      const sessionResult = await sessionRepo.findById(sessionId);
+      
+      if (!sessionResult.success || !sessionResult.data) {
+        console.error('Failed to find session for summary generation');
+        return;
+      }
+
+      const session = sessionResult.data;
+
+      if (isAdventureComplete) {
+        // Generate adventure completion summary
+        const result = await summaryService.generateAdventureCompletionSummary(session.adventureId);
+        if (result.success) {
+          log.ui('generateSessionSummary', 'App', { 
+            action: 'adventure_completion_summary_generated',
+            adventureId: session.adventureId,
+            summaryId: result.data?.id
+          });
+          console.log('Adventure completion summary generated successfully');
+        } else {
+          console.error('Failed to generate adventure completion summary:', result.error);
+        }
+      } else {
+        // Generate session summary
+        const result = await summaryService.generateSessionSummary(session.adventureId, sessionId);
+        if (result.success) {
+          log.ui('generateSessionSummary', 'App', { 
+            action: 'session_summary_generated',
+            adventureId: session.adventureId,
+            sessionId: sessionId,
+            summaryId: result.data?.id
+          });
+          console.log('Session summary generated successfully');
+        } else {
+          console.error('Failed to generate session summary:', result.error);
+        }
+      }
+    } catch (error) {
+      log.error('ui', 'Summary generation failed', error instanceof Error ? error : new Error(String(error)));
+      console.error('Error generating summary:', error);
+    }
+  };
+
   const handleEndSession = async (isAdventureComplete: boolean = false) => {
-    if (!currentSession) return;
+    if (!currentSession) {
+      console.error('No current session to end');
+      return;
+    }
+    
+    console.log('Ending session with ID:', currentSession.id);
+    console.log('Current session data:', currentSession);
     
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
       try {
-        const sessionRepo = new SessionRepository(dbManager.getConnection());
-        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
+        const connection = await dbManager.getConnectionAsync();
+        const sessionRepo = new SessionRepository(connection);
+        const sceneRunStateRepo = new SceneRunStateRepository(connection);
+        
+        // Verify session exists in database (non-blocking)
+        sessionRepo.findById(currentSession.id).then(verifyResult => {
+          if (!verifyResult.success || !verifyResult.data) {
+            console.error('Session not found in database, cannot end session:', currentSession.id);
+            console.error('Verification error:', verifyResult.error);
+            // Don't interrupt the end session process, just log the error
+          } else {
+            console.log('Session verified for session end:', currentSession.id);
+          }
+        });
         
         // Exit current scene if we have one
         if (selectedScene) {
@@ -520,7 +682,13 @@ function App() {
         
         if (result.success) {
           console.log('Session ended successfully');
-          setCurrentSession(undefined);
+          
+          // Generate summary if adventure is complete or session has meaningful content
+          if (isAdventureComplete || sceneRunStates.size > 0) {
+            await generateSessionSummary(currentSession.id, isAdventureComplete);
+          }
+          
+          debugSetCurrentSession(undefined);
           setSceneRunStates(new Map());
         } else {
           console.error('Failed to end session:', result.error);
@@ -534,32 +702,55 @@ function App() {
   const handleResumeSession = async (adventure: Adventure) => {
     setSelectedAdventure(adventure);
     
-    // Load all scenes for this adventure
+    // Load all scenes and NPCs for this adventure
     await loadAllScenes(adventure.id);
+    await loadAllNPCs(adventure.id);
     
     // Find the latest incomplete session
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
       try {
-        const sessionRepo = new SessionRepository(dbManager.getConnection());
-        const sceneRunStateRepo = new SceneRunStateRepository(dbManager.getConnection());
-        const sceneRepo = new SceneRepository(dbManager.getConnection());
+        const connection = await dbManager.getConnectionAsync();
+        const sessionRepo = new SessionRepository(connection);
+        const sceneRunStateRepo = new SceneRunStateRepository(connection);
+        const sceneRepo = new SceneRepository(connection);
         
         // Get latest session for this adventure
         const sessionResult = await sessionRepo.findLatestByAdventureId(adventure.id);
         
         if (sessionResult.success && sessionResult.data && !sessionResult.data.endedAt) {
           const session = sessionResult.data;
-          setCurrentSession(session);
+          debugSetCurrentSession(session);
           
           // Load scene run states for this session
-          const runStatesResult = await sceneRunStateRepo.findBySessionId(session.id);
+          console.log('🔍 Loading scene run states for session:', session.id);
+          let runStatesResult;
+          
+          // Check if this is a composite session ID (old session)
+          if (session.id && session.id.includes('-session-')) {
+            console.log('🔄 Using fallback method for old session');
+            runStatesResult = await sceneRunStateRepo.findByAdventureAndSessionNumber(session.adventureId, session.sessionNumber);
+          } else {
+            runStatesResult = await sceneRunStateRepo.findBySessionId(session.id);
+          }
+          
+          console.log('📊 Scene run states result:', {
+            success: runStatesResult.success,
+            hasData: !!runStatesResult.data,
+            dataCount: runStatesResult.data?.length || 0,
+            sessionId: session.id
+          });
+          
           if (runStatesResult.success && runStatesResult.data) {
             const runStateMap = new Map<string, SceneRunState>();
             runStatesResult.data.forEach(state => {
               runStateMap.set(state.sceneId, state);
             });
             setSceneRunStates(runStateMap);
+            console.log('✅ Scene run states loaded:', runStateMap.size, 'states');
+          } else {
+            console.log('❌ No scene run states found for session:', session.id);
+            setSceneRunStates(new Map());
           }
           
           // Load the current scene
@@ -597,6 +788,11 @@ function App() {
     setCurrentView('play');
   };
 
+  const handleViewSummaries = (adventure: Adventure) => {
+    setSelectedAdventure(adventure);
+    setCurrentView('summaries');
+  };
+
   const loadAllScenes = async (adventureId: string) => {
     const dbManager = getDatabaseManager();
     if (dbManager.isReady()) {
@@ -604,6 +800,17 @@ function App() {
       const result = await sceneRepo.findByAdventureId(adventureId);
       if (result.success && result.data) {
         setAllScenes(result.data);
+      }
+    }
+  };
+
+  const loadAllNPCs = async (adventureId: string) => {
+    const dbManager = getDatabaseManager();
+    if (dbManager.isReady()) {
+      const npcRepo = new NPCRepository(dbManager.getConnection());
+      const result = await npcRepo.findByAdventureId(adventureId);
+      if (result.success && result.data) {
+        setAllNPCs(result.data);
       }
     }
   };
@@ -623,6 +830,7 @@ function App() {
             onSetStartingScene={handlePlayAdventure}
             onPlayAdventure={handlePlayAdventure}
             onResumeSession={handleResumeSession}
+            onViewSummaries={handleViewSummaries}
           />
         );
       
@@ -715,6 +923,8 @@ function App() {
           <SceneDisplay
             scene={selectedScene}
             adventureId={selectedAdventure?.id || ''}
+            adventure={selectedAdventure}
+            npcs={allNPCs}
             onSceneChange={handleSceneChange}
             onExitToScene={handleExitToScene}
             onNavigateBack={handleNavigateBack}
@@ -727,6 +937,7 @@ function App() {
             historyIndex={historyIndex}
             currentSession={currentSession}
             sceneRunState={sceneRunStates.get(selectedScene.id)}
+            allSceneRunStates={sceneRunStates}
             onEndSession={handleEndSession}
           />
         ) : (
@@ -755,6 +966,15 @@ function App() {
           </div>
         );
       
+      case 'summaries':
+        return (
+          <SummaryViewer
+            adventureId={selectedAdventure?.id || ''}
+            adventureTitle={selectedAdventure?.title || ''}
+            onBack={handleBackToList}
+          />
+        );
+      
       default:
         return null;
     }
@@ -766,8 +986,17 @@ function App() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-blue-600">RPG Scene Navigator</h1>
-            <div className="text-sm text-gray-600">
-              Phase 2 Complete
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleResetDatabase}
+                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                title="Reset entire database (delete all data)"
+              >
+                🗄️ Reset DB
+              </button>
+              <div className="text-sm text-gray-600">
+                Phase 2 Complete
+              </div>
             </div>
           </div>
         </div>

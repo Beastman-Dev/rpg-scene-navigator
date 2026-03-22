@@ -232,15 +232,51 @@ class IndexedDBStatement implements Statement {
     const storageKey = `rpg-db-${tableName}`;
     const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
     
-    console.log(`🔍 handleSelectOne: Looking for ID "${params[0]}" in ${tableName}`, {
+    console.log(`🔍 handleSelectOne: Query "${this.sql}" with params ${JSON.stringify(params)} in ${tableName}`, {
       storageKey,
       dataCount: data.length,
       allIds: data.map((r: any) => r.id),
       firstRecord: data[0]
     });
     
-    // Find by ID (first param)
-    let result = data.find((r: any) => r.id === params[0]) || null;
+    // Check if this is a WHERE clause query or ID lookup
+    let result: any = null;
+    
+    if (this.sql.includes('WHERE')) {
+      // Handle WHERE clause queries
+      if (tableName === 'sessions' && this.sql.includes('adventure_id = ?')) {
+        console.log(`🔍 Looking for sessions with adventure_id: ${params[0]}`);
+        let filteredData = data.filter((r: any) => r.adventure_id === params[0]);
+        
+        // Handle ORDER BY session_number DESC
+        if (this.sql.includes('ORDER BY session_number DESC')) {
+          console.log(`🔍 Sorting sessions by session_number DESC`);
+          filteredData.sort((a: any, b: any) => b.session_number - a.session_number);
+        }
+        
+        // Handle LIMIT 1
+        if (this.sql.includes('LIMIT 1')) {
+          console.log(`🔍 Taking first session (LIMIT 1)`);
+          result = filteredData.length > 0 ? filteredData[0] : null;
+        } else {
+          result = filteredData.length > 0 ? filteredData[0] : null;
+        }
+        
+        console.log(`🔍 Found ${filteredData.length} sessions, selected first:`, result);
+      } else {
+        // Generic WHERE clause handling (simple cases)
+        const whereMatch = this.sql.match(/WHERE (\w+) = \?/);
+        if (whereMatch) {
+          const fieldName = whereMatch[1];
+          console.log(`🔍 Looking for ${tableName} with ${fieldName}: ${params[0]}`);
+          result = data.find((r: any) => r[fieldName] === params[0]) || null;
+        }
+      }
+    } else {
+      // Simple ID lookup
+      console.log(`🔍 Looking for record with ID: ${params[0]}`);
+      result = data.find((r: any) => r.id === params[0]) || null;
+    }
     
     // Convert snake_case to camelCase for adventures and parse JSON fields
     if (tableName === 'adventures' && result) {
@@ -288,6 +324,18 @@ class IndexedDBStatement implements Statement {
     const tableName = tableMatch[1];
     const storageKey = `rpg-db-${tableName}`;
     let data = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    
+    console.log(`🔍 handleSelectAll: Query "${this.sql}" with params ${JSON.stringify(params)} in ${tableName}`, {
+      storageKey,
+      dataCount: data.length,
+      hasWhere: this.sql.includes('WHERE'),
+      sampleRecords: data.slice(0, 3).map((r: any) => ({
+        id: r.id,
+        session_id: r.session_id,
+        adventure_id: r.adventure_id,
+        scene_id: r.scene_id
+      }))
+    });
     
     // Parse and apply WHERE clause filtering
     const whereMatch = this.sql.match(/WHERE\s+(.+?)(?:\s+GROUP\s+BY|\s+ORDER\s+BY|$)/i);

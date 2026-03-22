@@ -13,10 +13,13 @@ export class AdventureSummaryRepository extends BaseRepository<AdventureSummary>
 
   async findByAdventureId(adventureId: string): Promise<{ success: boolean; data?: AdventureSummary[]; error?: string }> {
     try {
-      const result = await this.connection.all(
-        'SELECT * FROM adventure_summaries WHERE adventure_id = ? ORDER BY generated_at DESC',
-        [adventureId]
-      );
+      if (!this.db) {
+        return { success: false, error: 'Database connection not available' };
+      }
+      
+      const result = this.db.prepare(
+        'SELECT * FROM adventure_summaries WHERE adventure_id = ? ORDER BY generated_at DESC'
+      ).all(adventureId);
       
       const summaries = result.map(this.rowToEntity);
       return { success: true, data: summaries };
@@ -27,10 +30,13 @@ export class AdventureSummaryRepository extends BaseRepository<AdventureSummary>
 
   async findLatestByAdventureId(adventureId: string): Promise<{ success: boolean; data?: AdventureSummary | null; error?: string }> {
     try {
-      const result = await this.connection.get(
-        'SELECT * FROM adventure_summaries WHERE adventure_id = ? ORDER BY generated_at DESC LIMIT 1',
-        [adventureId]
-      );
+      if (!this.db) {
+        return { success: false, error: 'Database connection not available' };
+      }
+      
+      const result = this.db.prepare(
+        'SELECT * FROM adventure_summaries WHERE adventure_id = ? ORDER BY generated_at DESC LIMIT 1'
+      ).get(adventureId);
       
       if (!result) {
         return { success: true, data: null };

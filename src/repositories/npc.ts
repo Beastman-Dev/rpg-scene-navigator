@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { BaseRepository } from './base';
 import type { NPC, StatBlock } from '@/types';
+import { log } from '@/utils/logger';
 
 export class NPCRepository extends BaseRepository<NPC> {
   protected getTableName(): string {
@@ -45,24 +46,33 @@ export class NPCRepository extends BaseRepository<NPC> {
   /**
    * Find NPCs by adventure ID
    */
-  async findByAdventure(adventureId: string): Promise<{ success: boolean; data?: NPC[]; error?: string }> {
+  async findByAdventureId(adventureId: string): Promise<{ success: boolean; data?: NPC[]; error?: string }> {
     try {
+      log.repository('findByAdventureId', 'npcs', { adventureId });
+      
+      // Defensive check for connection
+      if (!this.db) {
+        log.error('npc', 'Database connection is undefined', new Error('Connection not initialized'), { adventureId });
+        return { success: false, error: 'Database connection not available' };
+      }
+      
       const sql = `SELECT * FROM ${this.getTableName()} WHERE adventure_id = ? ORDER BY name`;
       const rows = this.db.prepare(sql).all(adventureId);
+      const entities = rows.map(this.rowToEntity);
       
-      const entities = rows.map((row: any) => {
-        let processedRow = this.parseJsonFields(row, this.getTableName());
-        return this.rowToEntity(processedRow);
-      });
-
+      log.repository('findByAdventureId', 'npcs', { adventureId, count: entities.length });
       return { success: true, data: entities };
     } catch (error) {
-      console.error('FindByAdventure failed:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
+      log.error('npc', `findByAdventureId failed`, error instanceof Error ? error : new Error(String(error)), { adventureId });
+      return { success: false, error: `Failed to find NPCs: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
+  }
+
+  /**
+   * Find NPCs by adventure ID (alias for findByAdventureId)
+   */
+  async findByAdventure(adventureId: string): Promise<{ success: boolean; data?: NPC[]; error?: string }> {
+    return this.findByAdventureId(adventureId);
   }
 
   /**

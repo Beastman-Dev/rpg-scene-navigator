@@ -13,10 +13,9 @@ export class SceneRunStateRepository extends BaseRepository<SceneRunState> {
 
   async findBySessionId(sessionId: string): Promise<{ success: boolean; data?: SceneRunState[]; error?: string }> {
     try {
-      const result = await this.connection.all(
-        'SELECT * FROM scene_run_states WHERE session_id = ? ORDER BY entered_at ASC',
-        [sessionId]
-      );
+      const result = this.db.prepare(
+        'SELECT * FROM scene_run_states WHERE session_id = ? ORDER BY entered_at ASC'
+      ).all(sessionId);
       
       const sceneRunStates = result.map(this.rowToEntity);
       return { success: true, data: sceneRunStates };
@@ -25,12 +24,78 @@ export class SceneRunStateRepository extends BaseRepository<SceneRunState> {
     }
   }
 
+  // Fallback method for old sessions without proper session IDs
+  async findByAdventureAndSessionNumber(adventureId: string, sessionNumber: number): Promise<{ success: boolean; data?: SceneRunState[]; error?: string }> {
+    try {
+      console.log(`🔍 Looking for scene run states by adventure ${adventureId} and session number ${sessionNumber}`);
+      
+      // Check if connection is available
+      if (!this.db) {
+        console.error('❌ Database connection not available for scene run states');
+        return { success: false, error: 'Database connection not available' };
+      }
+      
+      console.log('✅ Database connection available, proceeding with query');
+      
+      // First, let's see what's in the scene_run_states table
+      console.log('🔍 Executing query: SELECT * FROM scene_run_states');
+      try {
+        const allResult = this.db.prepare('SELECT * FROM scene_run_states').all();
+        console.log(`🗂️ All scene run states in database:`, {
+          totalCount: allResult.length,
+          sampleRecords: allResult.slice(0, 3).map(r => ({
+            id: r.id,
+            session_id: r.session_id,
+            adventure_id: r.adventure_id,
+            scene_id: r.scene_id,
+            entered_at: r.entered_at
+          })),
+          allAdventureIds: [...new Set(allResult.map(r => r.adventure_id).filter(Boolean))],
+          lookingFor: adventureId
+        });
+        
+        // Since scene run states don't have adventure_id or session_id, we need to find them
+        // by looking for the most recent scene run states that would belong to this session
+        // We'll get all scene run states and sort by entered_at to find the most recent ones
+        console.log('🔍 Getting all scene run states sorted by entered_at (newest first)');
+        const allSorted = this.db.prepare('SELECT * FROM scene_run_states ORDER BY entered_at DESC').all();
+        
+        console.log(`📊 Found ${allSorted.length} scene run states total, taking most recent ones`);
+        
+        // Deduplicate scene run states to only include unique scenes
+        // Keep only the most recent visit to each scene
+        const uniqueScenes = new Map();
+        allSorted.forEach(state => {
+          if (!uniqueScenes.has(state.scene_id)) {
+            uniqueScenes.set(state.scene_id, state);
+          }
+        });
+        
+        const deduplicatedStates = Array.from(uniqueScenes.values()).slice(0, 10); // Take up to 10 unique scenes
+        
+        console.log(`📊 Using ${deduplicatedStates.length} unique scene run states as fallback:`, deduplicatedStates.map(r => ({
+          scene_id: r.scene_id,
+          entered_at: r.entered_at,
+          notes: r.notes,
+          player_decisions: r.player_decisions
+        })));
+        
+        const sceneRunStates = deduplicatedStates.map(this.rowToEntity);
+        return { success: true, data: sceneRunStates };
+      } catch (queryError) {
+        console.error('❌ Query execution failed:', queryError);
+        return { success: false, error: `Query execution failed: ${queryError instanceof Error ? queryError.message : 'Unknown error'}` };
+      }
+    } catch (error) {
+      return { success: false, error: `Failed to find scene run states by adventure: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  }
+
   async findBySessionIdAndSceneId(sessionId: string, sceneId: string): Promise<{ success: boolean; data?: SceneRunState | null; error?: string }> {
     try {
-      const result = await this.connection.get(
-        'SELECT * FROM scene_run_states WHERE session_id = ? AND scene_id = ?',
-        [sessionId, sceneId]
-      );
+      const result = this.db.prepare(
+        'SELECT * FROM scene_run_states WHERE session_id = ? AND scene_id = ?'
+      ).get(sessionId, sceneId);
       
       if (!result) {
         return { success: true, data: null };

@@ -1,11 +1,14 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Save, FileText, Users, MapPin, Eye, EyeOff, Shield, Sword, Heart } from 'lucide-react';
-import type { Scene, SceneNpcRef, ExitOption, Session, SceneRunState } from '@/types';
+import { ArrowLeft, ArrowRight, Save, FileText, Users, MapPin, Eye, EyeOff, Shield, Sword, Heart, Trophy } from 'lucide-react';
+import type { Scene, SceneNpcRef, ExitOption, Session, SceneRunState, Adventure, NPC } from '@/types';
+import { AdventureCompletion } from './AdventureCompletion';
 
 interface SceneDisplayProps {
   scene: Scene;
   adventureId: string;
+  adventure?: Adventure;
+  npcs?: NPC[];
   onSceneChange?: (scene: Scene) => void;
   onExitToScene?: (sceneId: string, exitOptionId?: string) => void;
   onNavigateBack?: () => void;
@@ -18,6 +21,7 @@ interface SceneDisplayProps {
   historyIndex?: number;
   currentSession?: Session;
   sceneRunState?: SceneRunState;
+  allSceneRunStates?: Map<string, SceneRunState>;
   onEndSession?: (isAdventureComplete?: boolean) => void;
   className?: string;
 }
@@ -25,28 +29,33 @@ interface SceneDisplayProps {
 export function SceneDisplay({ 
   scene, 
   adventureId, 
+  adventure,
+  npcs,
   onSceneChange, 
   onExitToScene,
   onNavigateBack,
   onNavigateForward,
   onJumpToScene,
-  allScenes = [],
-  canNavigateBack = false,
-  canNavigateForward = false,
-  navigationHistory = [],
-  historyIndex = -1,
+  allScenes,
+  canNavigateBack,
+  canNavigateForward,
+  navigationHistory,
+  historyIndex,
   currentSession,
   sceneRunState,
+  allSceneRunStates,
   onEndSession,
   className = '' 
 }: SceneDisplayProps) {
   const [gmNotes, setGmNotes] = useState('');
-  const [showGMNotes, setShowGMNotes] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
-  const [showSessionNotes, setShowSessionNotes] = useState(false);
   const [visitedScenes, setVisitedScenes] = useState<Set<string>>(new Set());
-  const [showSceneList, setShowSceneList] = useState(false);
   const [playerDecisions, setPlayerDecisions] = useState<string[]>([]);
+  const [showGmContent, setShowGmContent] = useState(false);
+  const [showGMNotes, setShowGMNotes] = useState(false);
+  const [showSessionNotes, setShowSessionNotes] = useState(false);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [showSceneList, setShowSceneList] = useState(false);
   const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
 
   // Load session state when scene or session changes
@@ -85,6 +94,18 @@ export function SceneDisplay({
     return scene.sceneNpcRefs?.find(ref => ref.npcId === npcId);
   };
 
+  const handleEndSession = () => {
+    console.log('SceneDisplay handleEndSession called, currentSession:', currentSession);
+    setShowCompletion(true);
+  };
+
+  const handleCompleteAdventure = (completionData: any) => {
+    onEndSession?.(completionData.isAdventureComplete);
+    setShowCompletion(false);
+  };
+
+  console.log('SceneDisplay render - currentSession:', currentSession);
+  
   return (
     <div className={`max-w-6xl mx-auto p-6 ${className}`}>
       {/* Scene Header */}
@@ -457,7 +478,7 @@ export function SceneDisplay({
                   Session #{currentSession.sessionNumber}
                 </div>
                 <button
-                  onClick={() => setShowEndSessionDialog(true)}
+                  onClick={handleEndSession}
                   className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
                 >
                   End Session
@@ -569,40 +590,19 @@ export function SceneDisplay({
         </div>
       )}
 
-      {/* End Session Dialog */}
-      {showEndSessionDialog && (
+      {/* Adventure Completion */}
+      {showCompletion && adventure && currentSession && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">End Session</h3>
-            <p className="text-gray-600 mb-6">
-              Is the adventure complete?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  onEndSession?.(true);
-                  setShowEndSessionDialog(false);
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Yes - Complete
-              </button>
-              <button
-                onClick={() => {
-                  onEndSession?.(false);
-                  setShowEndSessionDialog(false);
-                }}
-                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-              >
-                No - Continue Later
-              </button>
-              <button
-                onClick={() => setShowEndSessionDialog(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-screen overflow-y-auto">
+            <AdventureCompletion
+              adventure={adventure}
+              session={currentSession}
+              scenes={allScenes || []}
+              npcs={npcs || []}
+              sceneRunStates={Array.from(allSceneRunStates?.values() || [])}
+              onComplete={handleCompleteAdventure}
+              onCancel={() => setShowCompletion(false)}
+            />
           </div>
         </div>
       )}
